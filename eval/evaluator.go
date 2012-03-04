@@ -96,7 +96,7 @@ type Evaluator struct {
 }
 
 type Program struct {
-	lang, code string
+	Lang, Code string
 }
 
 func NewEvaluator(basedir string) *Evaluator {
@@ -107,17 +107,17 @@ func NewEvaluator(basedir string) *Evaluator {
 }
 
 func (E *Evaluator) Compile(prog Program, ID *string) error {
-	lang, ok := languages[prog.lang]
+	lang, ok := languages[prog.Lang]
 	if ! ok {
-		return fmt.Errorf("Unsupported language '%s'", prog.lang)
+		return fmt.Errorf("Unsupported language '%s'", prog.Lang)
 	}
 
 	hash := sha1.New()
-	io.WriteString(hash, prog.code)
+	io.WriteString(hash, prog.Code)
 	*ID = fmt.Sprintf("%x", hash.Sum(nil))
 	os.Mkdir(E.BaseDir + "/" + *ID, 0700)
 	filename := E.BaseDir + "/" + *ID + "/code." + lang.Extension()
-	ioutil.WriteFile(filename, []byte(prog.code), 0600)	
+	ioutil.WriteFile(filename, []byte(prog.Code), 0600)	
 	session := &Session{ 
 	   basedir: E.BaseDir, 
 	   ID: *ID, 
@@ -136,7 +136,7 @@ func (E *Evaluator) Compile(prog Program, ID *string) error {
 }
 
 type Request struct {
-	ID, input string
+	ID, Input string
 }
 
 func (E *Evaluator) Execute(req Request, output *string) error {
@@ -144,7 +144,7 @@ func (E *Evaluator) Execute(req Request, output *string) error {
 	if ! ok {
 		return fmt.Errorf("Session '%s' not found", req.ID)
 	}
-	out, err := S.Execute(req.input); 
+	out, err := S.Execute(req.Input); 
 	if err != nil {
 		return err
 	}
