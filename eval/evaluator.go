@@ -15,6 +15,7 @@ import (
 
 type Language interface {
 	Name() string
+	Extension() string
 	Compile(ID string) (string, error)
 	Execute(ID string, input string) (string, error)
 }
@@ -25,19 +26,31 @@ func (L *Cpp) Name() string {
 	return string(*L)
 }
 
+func (L *Cpp) Extension() string {
+	return "cc"
+}
+
 func (L *Cpp) Compile(ID string) (string, error) {
-	cmd := exec.Command("g++", "-o", "exe", "code")
+	cmd := exec.Command("g++", "-o", "exe", "code.cc")
 	var out bytes.Buffer
-	cmd.Stdout = &out
+	cmd.Stderr = &out
 	err := cmd.Run()
 	if err != nil {
+		fmt.Println(err)
 		return out.String(), fmt.Errorf("Compilation failed")
 	}
 	return "", nil
 }
 
+var languages map[string]Language
+
+func init() {
+	languages = make(map[string]Language)
+	languages["c++"] = new(Cpp)
+}
+
 func (L *Cpp) Execute(ID string, input string) (string, error) {
-	cmd := exec.Command("exe")
+	cmd := exec.Command("./exe")
 	cmd.Stdin = strings.NewReader(input)
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -79,7 +92,6 @@ func (S *Session) Destroy() {
 
 type Evaluator struct {
 	BaseDir   string
-	languages map[string]Language
 	sessions  map[string]*Session
 }
 
@@ -87,25 +99,39 @@ type Program struct {
 	lang, code string
 }
 
+func NewEvaluator(basedir string) *Evaluator {
+	ev := new(Evaluator)
+	ev.BaseDir = basedir
+	ev.sessions = make(map[string]*Session)
+	return ev
+}
+
 func (E *Evaluator) Compile(prog Program, ID *string) error {
-	hash := sha1.New()
-	io.WriteString(hash, prog.code)
-	*ID = string(hash.Sum(nil))
-	os.Mkdir(E.BaseDir + "/" + *ID, 0700)
-	ioutil.WriteFile(E.BaseDir + "/" + *ID + "/code", []byte(prog.code), 0600)	
-	lang, ok := E.languages[prog.lang]
+	lang, ok := languages[prog.lang]
 	if ! ok {
 		return fmt.Errorf("Unsupported language '%s'", prog.lang)
 	}
-	output, err := lang.Compile(*ID)
-	if err != nil {
-		return fmt.Errorf("Compilation error:\n%s", output)
-	}
-	E.sessions[*ID] = &Session{ 
+
+	hash := sha1.New()
+	io.WriteString(hash, prog.code)
+	*ID = fmt.Sprintf("%x", hash.Sum(nil))
+	os.Mkdir(E.BaseDir + "/" + *ID, 0700)
+	filename := E.BaseDir + "/" + *ID + "/code." + lang.Extension()
+	ioutil.WriteFile(filename, []byte(prog.code), 0600)	
+	session := &Session{ 
 	   basedir: E.BaseDir, 
 	   ID: *ID, 
 	   lang: lang,
    }
+	var output string
+	var err error
+	session.withinDir(func () {
+		output, err = lang.Compile(*ID)
+	})
+	if err != nil {
+		return fmt.Errorf("Compilation error:\n%s", output)
+	}
+	E.sessions[*ID] = session
 	return nil
 }
 
