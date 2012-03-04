@@ -13,25 +13,20 @@ import (
 	"log"
 )
 
-type Language interface {
-	Name() string
-	Extension() string
+type Language struct {
+	Name, Extension string
+	Functions Compiler
+}
+
+type Compiler interface {
 	Compile(ID string) (string, error)
 	Execute(ID string, input string) (string, error)
 }
 
 type Cpp string
 
-func (L *Cpp) Name() string {
-	return string(*L)
-}
-
-func (L *Cpp) Extension() string {
-	return "cc"
-}
-
 func (L *Cpp) Compile(ID string) (string, error) {
-	cmd := exec.Command("g++", "-o", "exe", "code.cc")
+	cmd := exec.Command("g++", "-static", "-o", "exe", "code.cc")
 	var out bytes.Buffer
 	cmd.Stderr = &out
 	err := cmd.Run()
@@ -46,7 +41,11 @@ var languages map[string]Language
 
 func init() {
 	languages = make(map[string]Language)
-	languages["c++"] = new(Cpp)
+	languages["c++"] = Language{
+	   Name: "c++", 
+	   Extension: "cc", 
+	   Functions: new(Cpp),
+   }
 }
 
 func (L *Cpp) Execute(ID string, input string) (string, error) {
@@ -78,7 +77,7 @@ func (S *Session) withinDir(F func()) {
 
 func (S *Session) Execute(input string) (out string, err error) {
 	S.withinDir(func () {
-		out, err = S.lang.Execute(S.ID, input)
+		out, err = S.lang.Functions.Execute(S.ID, input)
 	})
 	return
 }
@@ -116,7 +115,7 @@ func (E *Evaluator) Compile(prog Program, ID *string) error {
 	io.WriteString(hash, prog.Code)
 	*ID = fmt.Sprintf("%x", hash.Sum(nil))
 	os.Mkdir(E.BaseDir + "/" + *ID, 0700)
-	filename := E.BaseDir + "/" + *ID + "/code." + lang.Extension()
+	filename := E.BaseDir + "/" + *ID + "/code." + lang.Extension
 	ioutil.WriteFile(filename, []byte(prog.Code), 0600)	
 	session := &Session{ 
 	   basedir: E.BaseDir, 
@@ -126,7 +125,7 @@ func (E *Evaluator) Compile(prog Program, ID *string) error {
 	var output string
 	var err error
 	session.withinDir(func () {
-		output, err = lang.Compile(*ID)
+		output, err = lang.Functions.Compile(*ID)
 	})
 	if err != nil {
 		return fmt.Errorf("Compilation error:\n%s", output)

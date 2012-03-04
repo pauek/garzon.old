@@ -38,7 +38,7 @@ func init() {
 }
 
 func TestCompile(t *testing.T) {
-	err := E.Compile(Program{lang:"c++", code: P}, &ID)
+	err := E.Compile(Program{Lang:"c++", Code: P}, &ID)
 	if err != nil {
 		t.Errorf("Cannot compile C++: %s", err)
 		return
@@ -47,7 +47,7 @@ func TestCompile(t *testing.T) {
 
 func TestExecute(t *testing.T) {
 	var output string
-	err := E.Execute(Request{ ID: ID, input: "2 3\n" }, &output)
+	err := E.Execute(Request{ ID: ID, Input: "2 3\n" }, &output)
 	if err != nil {
 		t.Errorf("Cannot execute C++ program: %s", err)
 	}
