@@ -7,62 +7,15 @@ import (
 	"io"
 	"io/ioutil"
 	"fmt"
-	"bytes"
 	"crypto/sha1"
-	"strings"
 	"log"
+	
+	"garzon/eval/lang"
 )
-
-type Language struct {
-	Name, Extension string
-	Functions Compiler
-}
-
-type Compiler interface {
-	Compile(ID string) (string, error)
-	Execute(ID string, input string) (string, error)
-}
-
-type Cpp string
-
-func (L *Cpp) Compile(ID string) (string, error) {
-	cmd := exec.Command("g++", "-static", "-o", "exe", "code.cc")
-	var out bytes.Buffer
-	cmd.Stderr = &out
-	err := cmd.Run()
-	if err != nil {
-		fmt.Println(err)
-		return out.String(), fmt.Errorf("Compilation failed")
-	}
-	return "", nil
-}
-
-var languages map[string]Language
-
-func init() {
-	languages = make(map[string]Language)
-	languages["c++"] = Language{
-	   Name: "c++", 
-	   Extension: "cc", 
-	   Functions: new(Cpp),
-   }
-}
-
-func (L *Cpp) Execute(ID string, input string) (string, error) {
-	cmd := exec.Command("./exe")
-	cmd.Stdin = strings.NewReader(input)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		return "", fmt.Errorf("Execution failed: ", err)
-	}
-	return out.String(), nil
-}
 
 type Session struct {
 	basedir, ID string
-	lang Language
+	lang lang.Language
 }
 
 func (S *Session) Dir() string {
@@ -106,7 +59,7 @@ func NewEvaluator(basedir string) *Evaluator {
 }
 
 func (E *Evaluator) Compile(prog Program, ID *string) error {
-	lang, ok := languages[prog.Lang]
+	lang, ok := lang.Languages[prog.Lang]
 	if ! ok {
 		return fmt.Errorf("Unsupported language '%s'", prog.Lang)
 	}
