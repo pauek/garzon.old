@@ -10,20 +10,20 @@ import (
 
 type Cpp string
 
-func (L *Cpp) Compile(ID string) (string, error) {
-	cmd := exec.Command("g++", "-static", "-o", "exe", "code.cc")
+func (L *Cpp) Compile(infile, outfile string) error {
+	cmd := exec.Command("g++", "-static", "-o", outfile, infile)
 	var out bytes.Buffer
 	cmd.Stderr = &out
 	err := cmd.Run()
 	if err != nil {
 		fmt.Println(err)
-		return out.String(), fmt.Errorf("Compilation failed")
+		return fmt.Errorf("Compilation failed: %s", out.String())
 	}
-	return "", nil
+	return nil
 }
 
-func (L *Cpp) Execute(ID string, input string) (string, error) {
-	cmd := exec.Command("./exe")
+func (L *Cpp) Execute(filename, input string) (string, error) {
+	cmd := exec.Command("./" + filename)
 	cmd.Stdin = strings.NewReader(input)
 	var out bytes.Buffer
 	cmd.Stdout = &out
