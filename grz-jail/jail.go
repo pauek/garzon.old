@@ -63,7 +63,7 @@ func main() {
 	cmd := exec.Command("systrace", a, exe)
 	err := cmd.Run()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(os.Stderr, "Execution error: %v\n", err)
 		os.Exit(1)
 	}
 }

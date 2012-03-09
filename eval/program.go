@@ -104,7 +104,7 @@ func (T *ProgramEvaluation) GetCommand() *exec.Cmd {
 	if T.curr == "accused" {
 		args = append(args, "-a")
 	}
-	args = append(args, "exe")
+	args = append(args, "./exe")
    return exec.Command("grz-jail", args...)
 }
 
