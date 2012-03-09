@@ -3,7 +3,7 @@ package main
 
 import (
 	"os"
-	"os/exec"
+	"log"
 	"fmt"
 	"flag"
 	"syscall"
@@ -43,7 +43,7 @@ func main() {
 	
 	setrlimit(syscall.RLIMIT_CPU,   MaxCPUSeconds)
 	setrlimit(syscall.RLIMIT_AS,    MaxMemory * 1024 * 1024)
-	setrlimit(syscall.RLIMIT_FSIZE, MaxFilesize)
+	setrlimit(syscall.RLIMIT_FSIZE, MaxFilesize * 1024 * 1024)
 
 	args := flag.Args()
 	if len(args) > 1 {
@@ -60,10 +60,5 @@ func main() {
 	if Accused {
 		a = "-a"
 	}
-	cmd := exec.Command("systrace", a, exe)
-	err := cmd.Run()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Execution error: %v\n", err)
-		os.Exit(1)
-	}
+	log.Fatal(syscall.Exec("systrace", []string{"-e", a, exe}, os.Environ()))
 }
