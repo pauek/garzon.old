@@ -126,7 +126,6 @@ func (T *ProgramEvaluation) SwitchTo(whom string) error {
 		path  = strings.Replace(path, "/", "_", -1)
 		path  = strings.Replace(path, "-", "_", -1)
 		tracefilename := fmt.Sprintf("%s/.systrace/%s", os.Getenv("HOME"), path)
-		fmt.Println(tracefilename)
 		cmd := exec.Command("rm", tracefilename)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("Couldn't erase systrace file '%s'", tracefilename)
