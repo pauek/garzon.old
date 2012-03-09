@@ -16,8 +16,7 @@ func (L *Cpp) Compile(infile, outfile string) error {
 	cmd.Stderr = &out
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("Compilation failed: %s", out.String())
+		return fmt.Errorf("Cpp.Compile: %v", err)
 	}
 	return nil
 }
@@ -29,7 +28,7 @@ func (L *Cpp) Execute(filename, input string) (string, error) {
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		return "", fmt.Errorf("Execution failed: ", err)
+		return "", fmt.Errorf("Cpp.Execute: %v", err)
 	}
 	return out.String(), nil
 }
