@@ -9,7 +9,11 @@ import (
 
 var ID string
 
-var Programs = []string{`
+const Wrong   = `int main{}`
+const Minimal = `int main() {}`
+const SigSEGV = `int T[1]; int main() { T[1000000] = 0; }`
+
+const SumAB = `
 #include <iostream>
 using namespace std;
 
@@ -19,10 +23,7 @@ int main() {
    cout << (a + b) << endl; 
 }
 
-`,
-`int main() {}`,
-}
-
+`
 func init() {
 	// Prepare directory
 	dir := os.TempDir() + "/grz-eval"
@@ -49,16 +50,32 @@ func test(p1, p2 string, inputs []string) *ProgramEvaluation {
 	return ev
 }
 
-func TestSame(t *testing.T) {
-	ev := test(Programs[0], Programs[0], []string{"1 1\n", "1 -2\n", "2 3\n"})
+func doTest(p1, p2 string, I []string) (Results, error) {
+	ev := test(p1, p2, I)
 	var R Results
 	err := ProgramEvaluator.Run(*ev, &R)
-	if err != nil { t.Error(err) }
+	return R, err
 }
 
-func TestVoid(t *testing.T) {
-	ev := test(Programs[1], Programs[0], []string{"1 1\n", "1 -2\n", "2 3\n"})
-	var R Results
-	err := ProgramEvaluator.Run(*ev, &R)
-	if err != nil { t.Error(err) }
+var tests = []struct { 
+	p1, p2 string
+	inputs []string
+} {
+	{ Minimal, Minimal,  []string{""} },
+	{ Wrong,   Minimal,  []string{""} },
+	{ Minimal, Wrong,    []string{""} },
+	{ SigSEGV, Minimal,  []string{""} },
+	{ Minimal, SigSEGV,  []string{""} },
+	{ Minimal, SumAB,    []string{""} },
+	{ SumAB,   SumAB,    []string{""} },	
+}
+
+func TestEvaluator(t *testing.T) {
+	for _, test := range tests {
+		_, err := doTest(test.p1, test.p2, test.inputs)
+		if err != nil {
+			log.Printf("%v", err)
+			t.Error(err)
+		}
+	}
 }

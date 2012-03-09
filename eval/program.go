@@ -40,7 +40,7 @@ func prefix(s string, length int) string {
       max = len(s)
 		suffix = ""
    }
-	return strings.Replace(s[:max], "\n", `\n`, -1) + suffix
+	return strings.Replace(s[:max], "\n", `↩`, -1) + suffix
 }
 
 func (I InputTest) Run(T ProgramEvaluation) (Result, error) {
@@ -195,12 +195,12 @@ func (E *ProgramEvaluatorType) Run(T ProgramEvaluation, R *Results) error {
 	log.Printf("Written '%s' and '%s'", aFile, mFile)
 
 	// 4. Compile Accused and Model
-	log.Printf("Compiling '%s'", aFile)
+	log.Printf("Compiling %s ('%s')", aFile, prefix(T.Accused.Code, 30))
 	err = aLang.Functions.Compile(aFile, "accused")
 	if err != nil {
 		return fmt.Errorf("Error compiling 'accused': %v", err)
 	}
-	log.Printf("Compiling '%s'", mFile)
+	log.Printf("Compiling %s ('%s')", mFile, prefix(T.Model.Code, 30))
 	err = mLang.Functions.Compile(mFile, "model")
 	if err != nil {
 		return fmt.Errorf("Error compiling 'model': %v", err)
