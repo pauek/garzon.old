@@ -35,22 +35,23 @@ type InputTest struct {
 
 func prefix(s string, length int) string {
 	max := length
+	suffix := "..."
 	if len(s) < length {
       max = len(s)
+		suffix = ""
    }
-	return strings.Replace(s[:max], "\n", "", -1)
+	return strings.Replace(s[:max], "\n", `\n`, -1) + suffix
 }
 
 func (I InputTest) Run(T ProgramEvaluation) (Result, error) {
 	outputs  := make(map[string]*bytes.Buffer)
-	for _, prog := range []string{"accused", "model", "bla"} {
+	for _, prog := range []string{"model", "accused"} {
 		err := T.SwitchTo(prog) 
 		if err != nil {
 			return Result(-1), err
 		}
-		log.Printf("Running input test: '%s...'", prefix(I.Input, 10));
+		log.Printf("Running input test (%s): '%s'", prog, prefix(I.Input, 10));
 		cmd := T.GetCommand()
-		log.Printf("Executing command: '%v'", cmd)
 		cmd.Stdin  = strings.NewReader(I.Input)
 		var output bytes.Buffer
 		cmd.Stdout = &output
@@ -58,6 +59,8 @@ func (I InputTest) Run(T ProgramEvaluation) (Result, error) {
 		err = cmd.Run()
 		if err != nil {
 			return Result(-1), fmt.Errorf("Couldn't execute '%s': %v", prog, err)
+		} else {
+			log.Printf("Output: '%s'", prefix(output.String(), 10))
 		}
 	}
 	if outputs["model"].String() != outputs["accused"].String() {
@@ -78,6 +81,7 @@ type ProgramEvaluation struct {
 	Tests []Test
 
 	curr string // current program: "model" or "accused"
+	dir  string // directory used for testing
 }
 
 type Results struct {
@@ -109,7 +113,6 @@ func (T *ProgramEvaluation) GetCommand() *exec.Cmd {
 }
 
 func (T *ProgramEvaluation) SwitchTo(whom string) error {
-	log.Printf("Switching to '%s'", whom)
 	if whom != "model" && whom != "accused" {
 		return fmt.Errorf("Program '%s' not known")
 	}
@@ -117,6 +120,18 @@ func (T *ProgramEvaluation) SwitchTo(whom string) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("Couldn't switch to '%s'", whom)
 	} 
+	// Borrar el fichero de syscalls cada vez!
+	if whom == "model" {
+		path := T.dir[1:] + "/exe"
+		path  = strings.Replace(path, "/", "_", -1)
+		path  = strings.Replace(path, "-", "_", -1)
+		tracefilename := fmt.Sprintf("%s/.systrace/%s", os.Getenv("HOME"), path)
+		fmt.Println(tracefilename)
+		cmd := exec.Command("rm", tracefilename)
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("Couldn't erase systrace file '%s'", tracefilename)
+		}
+	}
 	T.curr = whom
 	return nil
 }
@@ -153,6 +168,7 @@ func (E *ProgramEvaluatorType) Run(T ProgramEvaluation, R *Results) error {
 
 	// 2. Prepare Directory
 	dir := E.BaseDir + "/" + _sha1(T.Accused.Code)
+	T.dir = dir
 	log.Printf("Preparing directory '%s'", dir)
 	lastdir, _ := os.Getwd() // TODO: handle error?
 	os.Mkdir(dir, 0700)
