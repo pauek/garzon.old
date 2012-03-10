@@ -1,0 +1,27 @@
+Policy: /usr/bin/uniq, Emulation: linux
+	linux-newuname: permit
+	linux-brk: permit
+	linux-fsread: filename eq "/etc/ld.so.preload" then permit
+	linux-fsread: filename eq "/etc/ld.so.cache" then permit
+	linux-fsread: filename eq "/lib/libc.so.6" then permit
+	linux-fstat64: permit
+	linux-old_mmap: permit
+	linux-close: permit
+	linux-fsread: filename match "/lib/libacl.*" then permit
+	linux-read: permit
+	linux-fsread: filename match "/lib/i686/libc.*" then permit
+	linux-fsread: filename match "/lib/libattr.*" then permit
+	linux-munmap: permit
+	linux-fsread: filename eq "/usr/lib/locale/locale-archive" then permit
+	linux-mmap2: permit
+	linux-fsread: filename eq "$CWD/regress.sh" then permit
+	linux-write: permit
+	linux-fsread: filename eq "/usr/lib/gconv/gconv-modules.cache" then permit
+	linux-ni_syscall-43: true then permit
+	linux-exit: permit
+	linux-fsread: filename eq "/etc/ld.so.nohwcap" then permit
+	linux-fsread: filename match "/lib/tls/*" then permit
+	linux-mprotect: permit
+	linux-set_thread_area: permit
+	linux-exit_group: permit
+

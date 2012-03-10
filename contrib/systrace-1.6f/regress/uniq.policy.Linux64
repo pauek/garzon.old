@@ -1,0 +1,20 @@
+Policy: /usr/bin/uniq, Emulation: linux64
+	linux64-brk: permit
+	linux64-mmap: prot eq "PROT_READ|PROT_WRITE" then permit
+	linux64-fsread: filename eq "/etc/ld.so.nohwcap" then permit
+	linux64-fsread: filename eq "/etc/ld.so.preload" then permit
+	linux64-fsread: filename eq "/etc/ld.so.cache" then permit
+	linux64-fstat: permit
+	linux64-mmap: prot eq "PROT_READ" then permit
+	linux64-close: permit
+	linux64-fsread: filename eq "/lib/libc.so.6" then permit
+	linux64-read: permit
+	linux64-mmap: prot eq "PROT_READ|PROT_EXEC" then permit
+	linux64-mprotect: prot eq "PROT_NONE" then permit
+	linux64-arch_prctl: permit
+	linux64-mprotect: prot eq "PROT_READ" then permit
+	linux64-munmap: permit
+	linux64-fsread: filename match "/usr/lib/locale/*" then permit
+	linux64-fsread: filename eq "$CWD/regress.sh" then permit
+	linux64-write: permit
+	linux64-exit_group: permit

@@ -1,0 +1,22 @@
+Policy: /usr/bin/nm, Emulation: native
+	native-issetugid: permit
+	native-mprotect: permit
+	native-mmap: permit
+	native-__sysctl: permit
+	native-fsread: filename eq "/var/run/ld.so.hints" then permit
+	native-fstat: permit
+	native-close: permit
+	native-fsread: filename match "/usr/lib/libiberty.so*" then permit
+	native-read: permit
+	native-mquery: permit
+	native-fsread: filename match "/usr/lib/libc.so.*" then permit
+	native-sigprocmask: permit
+	native-fsread: filename eq "/etc/malloc.conf" then permit
+	native-break: permit
+	native-fsread: permit
+	native-lseek: permit
+	native-ioctl: permit
+	native-write: permit
+	native-munmap: permit
+	native-exit: permit
+

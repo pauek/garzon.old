@@ -1,0 +1,7 @@
+Changes in 1.6f:
+ o prevent a 32-bit program from mapping in 64-bit system calls; from Chris Evans
+ o support 64-bit linux on ptrace; as well; as 32-bit system calls on a 64-bit system
+
+Changes in 1.6e:
+ o potential escape of socket aliases and double free; from Tavis Ormandy
+ o fixed a problem with fork and ptrace; from Tavis Ormandy; CVE-2007-4773

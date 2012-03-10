@@ -1,0 +1,28 @@
+Policy: /usr/bin/nm, Emulation: linux
+	linux-newuname: permit
+	linux-brk: permit
+	linux-fsread: filename eq "/etc/ld.so.preload" then permit
+	linux-fsread: filename eq "/etc/ld.so.cache" then permit
+	linux-fstat64: permit
+	linux-old_mmap: permit
+	linux-close: permit
+	linux-fsread: filename match "/usr/lib/libbfd*" then permit
+	linux-read: permit
+	linux-fsread: filename match "/lib/libdl.*" then permit
+	linux-fsread: filename match "/lib/i686/libc.*" then permit
+	linux-munmap: permit
+	linux-fsread: filename eq "/usr/lib/locale/locale-archive" then permit
+	linux-mmap2: permit
+	linux-fsread: filename eq "/usr/lib/gconv/gconv-modules.cache" then permit
+	linux-fsread: true then permit
+	linux-llseek: permit
+	linux-fsread: filename eq "/etc/mtab" then permit
+	linux-fsread: filename eq "/proc/meminfo" then permit
+	linux-write: permit
+	linux-ni_syscall-43: true then permit
+	linux-exit: permit
+	linux-ni_syscall-34: permit
+	linux-mprotect: permit
+	linux-set_thread_area: permit
+	linux-exit_group: permit
+

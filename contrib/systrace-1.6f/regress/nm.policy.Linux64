@@ -1,0 +1,17 @@
+Policy: /usr/bin/nm, Emulation: linux64
+	linux64-arch_prctl: permit
+	linux64-brk: permit
+	linux64-close: permit
+	linux64-exit_group: permit
+	linux64-fsread: true then permit
+	linux64-fstat: permit
+	linux64-lseek: permit
+	linux64-mmap: prot eq "PROT_READ" then permit
+	linux64-mmap: prot eq "PROT_READ|PROT_EXEC" then permit
+	linux64-mmap: prot eq "PROT_READ|PROT_WRITE" then permit
+	linux64-mprotect: prot eq "PROT_NONE" then permit
+	linux64-mprotect: prot eq "PROT_READ" then permit
+	linux64-munmap: permit
+	linux64-read: permit
+	linux64-write: permit
+

@@ -1,0 +1,118 @@
+Systrace 1.6 - 2008-06-12
+-------------------------
+
+Systrace enforces system call policies for applications by
+constraining the application's access to the system.  Policy is
+generated interactively. Operations not covered by the policy raise an
+alarm, allowing an user to refine the currently configured policy.
+
+For complicated applications, it is difficult to know the correct
+policy before running them.  Initially, Systrace notifies the user
+about all system calls that an application tries to execute.  The user
+configures a policy for the specific system call that caused the
+warning.  After a few minutes, a policy is generated that allows the
+application to run without any warnings.  However, events that are not
+covered still generate a warning.  Normally, that is an indication of
+a security problem.
+
+Alternatively, policies can be learned automatically.  In many
+instances, the automatically learned policies can be used for
+sandboxing immediately.  Sometimes, minimal manual post-processing is
+necessary.
+
+With Systrace, untrusted binary applications can be sandboxed.  Their
+access to the system can be restricted almost arbitrarily.  Sandboxing
+applications that are available only as binaries make sense, as it is
+not possible to directly analyze what they are designed to do.
+However, constraining the system calls that large open-source
+applications are allowed to execute is useful too, as it is very
+difficult to determine their correctness.
+
+For example, by constraining a daemon's access to the system, Systrace
+can be used to protect operating system services from software bugs
+such as buffer overflows.  Its privilege elevation feature can be used
+to obviate the need to run large, untrusted programs as root when only
+one or two system calls require root privilege.
+
+Features
+--------
+
+  - Confines untrusted binary applications.
+  - Interactive Policy Generation with Graphical User Interface.
+  - Supports different emulations: GNU/Linux, BSDI, etc..
+  - System Call Argument Rewriting.
+  - Non-interactive Policy Enforcement.
+  - Remote Monitoring and Intrusion Detection.
+  - Privilege Elevation: Add-on capabilities.
+
+
+Installing Systrace
+-------------------
+
+To install on Linux, you must first install libevent.   You can get the
+libevent tarball at 
+   
+   http://monkey.org/~provos/libevent/
+
+When you run ./configure, use --prefix=/usr.   This will set up libevent to
+be installed in a location where systrace can find it.
+
+After building libevent, unpack the Systrace tarball.   You should be able to
+do './configure && make' to build Systrace and 'make install' to install
+it on your system.
+
+
+Resolving issues:
+
+If you installed libevent in somewhere other than /usr (such as the default
+/usr/local) and have problems, you will need to run ./configure for Systrace 
+as follows: 
+
+   ./configure --with-libevent=/usr/local/
+
+If you build now, you will notice that Systrace builds, but the regression 
+tests fail.   This is because Systrace cannot find libevent.   This can be
+fixed by adding the path to libevent to your LD_LIBRARY_PATH variable.   
+For example:
+
+   export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+
+
+
+
+General Notes
+-----------------
+
+Systrace relies on system call interposition to create a sandbox for
+untrusted applications.  It is available by default in the base
+installs of OpenBSD or NetBSD.  Kernel patches are available for
+Linux.
+
+This release includes a ptrace-based backend for Linux.  This means
+that you can run Systrace on Linux without any kernel changes. Most of
+Systrace's basic features are supported by the ptrace backend.
+However, sandboxed applications run much slower and features like
+privilege elevation are not supported.
+
+To make use of Systrace's more advanced features, you can download
+Marius Eriksen's Linux kernel patches from
+
+  http://www.citi.umich.edu/u/provos/systrace/linux.html
+
+Niels Provos
+
+
+
+Postscript
+----------
+
+Ptrace is a very poor tool to implement a sandbox.  The ptrace-based
+backend requires about three times as much code as the other backends
+and does not provide the same functionality. It requires complicated
+emulation of waitpid behavior.  I did not even start implementing
+emulating threading or signal masking yet.  I hope that we will be
+able to convince the Linux kernel maintainers that adding a clean
+interface for system call interposition to the kernel is a security
+benefit that should not be ignored.
+
+Systrace is not a MAC system and does not want to be either.
