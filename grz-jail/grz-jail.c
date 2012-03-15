@@ -11,9 +11,11 @@
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
+#include <sys/signal.h>
 #include <sys/time.h>
 #include <sys/user.h>
 #include <sys/wait.h>
+#include <asm/unistd.h>
 
 int is_accused = 0;
 int max_cpu_seconds = 2;
@@ -55,6 +57,8 @@ void FORMAT __die(int code, char *msg, ...) {
 #define die(...)    __die(2, __VA_ARGS__)
 #define die_if(cond, ...) if (cond) __die(2, __VA_ARGS__)
 
+#define SIGNAL(x) __NR_##x
+
 void setlimit(int what, rlim_t max) {
    if (max > 0) {
       struct rlimit L = { .rlim_cur = max, .rlim_max = max + 1 };
@@ -68,10 +72,31 @@ inline int milliseconds(struct timeval *t) {
    return t->tv_sec * 1000 + t->tv_usec / 1000;
 }
 
+#define PROC_BUF_SIZE 4096
+static void read_proc_file(pid_t pid, char *buf, char *name, int *fdp) {
+   if (!*fdp) {
+      sprintf(buf, "/proc/%d/%s", (int) pid, name);
+      *fdp = open(buf, O_RDONLY);
+      die_if(*fdp < 0, "open(%s): %s", buf, strerror(errno));
+   }
+   lseek(*fdp, 0, SEEK_SET);
+   int c = read(*fdp, buf, PROC_BUF_SIZE-1);
+   die_if(c < 0, "read on /proc/$pid/%s: %s", name, strerror(errno));
+   die_if(c >= PROC_BUF_SIZE-1, "/proc/$pid/%s too long", name);
+   buf[c] = 0;
+}
+
+static void read_proc_status(pid_t pid, char *buf) {
+   static int proc_status_fd;
+   read_proc_file(pid, buf, "status", &proc_status_fd);
+}
+   
+
 /** Accused **/
 
 pid_t accused_pid = 0;
 int   passed_exec = 0;
+int   accused_mem_peak_kb = 0;
 struct timeval start_time;
 struct rusage usage;
 struct user user;
@@ -117,6 +142,38 @@ void kill_accused() {
    }
 }
 
+void accused_sample_mem_peak() {
+   /* Taken from box.c directly */
+   /*
+    *  We want to find out the peak memory usage of the process, which
+    *  is maintained by the kernel, but unforunately it gets lost when
+    *  the process exits (it is not reported in struct
+    *  rusage). Therefore we have to sample it whenever we suspect
+    *  that the process is about to exit.
+    */
+   char buf[PROC_BUF_SIZE], *x;
+   read_proc_status(accused_pid, buf);
+   
+   x = buf;
+   while (*x) {
+      char *key = x;
+      while (*x && *x != ':' && *x != '\n') x++;
+      if (!*x || *x == '\n') break;
+      *x++ = 0;
+      while (*x == ' ' || *x == '\t') x++;
+      char *val = x;
+      while (*x && *x != '\n') x++;
+      if (!*x) break;
+      *x++ = 0;
+      if (!strcmp(key, "VmPeak")) {
+         int peak = atoi(val);
+         if (peak > accused_mem_peak_kb)
+            accused_mem_peak_kb = peak;
+      }
+   }
+}
+
+
 inline int final_time() {
    struct timeval total;
    timeradd(&usage.ru_utime, &usage.ru_stime, &total);
@@ -132,7 +189,9 @@ void accused_exited(int stat) {
    if (code != 0) {
       report("Error [%d]\n", code);
    }
-   report("Ok [%.3f sec, X MB]\n", final_time() / 1000.0);
+   report("Ok [%.3f sec, %.3f MB]\n", 
+          final_time() / 1000.0, 
+          accused_mem_peak_kb / 1024.0);
 }
 
 void accused_signaled(int stat) {
@@ -169,6 +228,12 @@ void accused_before_syscall() {
       }
    }
    syscall_count++;
+
+   // Maybe sample mem peak
+   if (args.sys == SIGNAL(exit) ||
+       args.sys == SIGNAL(exit_group)) {
+      accused_sample_mem_peak();
+   }
 
    // - Filtrar las syscalls no permitidas
    // - Almacenar el syscall

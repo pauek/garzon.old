@@ -6,3 +6,5 @@ gcc -o c segfault.c
 gcc -o d sigint.c
 g++ -static -o e good_vector_1e4_rep.cc
 g++ -static -o f good_vector_1e6.cc
+g++ -static -o g good_vector_1e7.cc
+g++ -static -o h good_vector_1e8.cc
