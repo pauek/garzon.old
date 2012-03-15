@@ -111,53 +111,82 @@ int read_user_mem(pid_t pid, uint64_t addr, char *buf, int len) {
    return read(mem_fd, buf, len);
 }
 
-typedef struct {
-   const char *name;
-   unsigned char flags;
-} _sysinfo;
+// syscall tables
 
-enum FLAGS {
-   HAS_FILENAME = 1,
-};
-
-#define __SYSCALL(a, b) [a] = { #b, 0 },
-   _sysinfo _syscall_table[] = {
+#define __SYSCALL(a, b) [a] = #b,
+   const char *_syscall_names[] = {
 #include <asm/unistd.h>
    };
 #undef __SYSCALL
 
-#define num(id)  __NR_##id
-
-inline _sysinfo *syscall_info(unsigned int id) {
-   static _sysinfo dummy;
-   dummy.name = "?";
-   dummy.flags = 0;
-   if (id < sizeof_array(_syscall_table)) {
-      return &_syscall_table[id];
+inline const char *syscall_name(unsigned int id) {
+   if (id < sizeof_array(_syscall_names)) {
+      return _syscall_names[id] + 4; // +4 to remove "sys_"
    } else {
-      return &dummy;
+      return NULL;
    }
 }
 
-inline const char *syscall_name(unsigned int id) {
-   return syscall_info(id)->name + 4;
-}
+#define NUM_SYSCALLS sizeof_array(_syscall_names)
 
-int _has_filename[] = {
-   num(open), 
-   num(creat), 
-   num(unlink), 
-   num(access), 
-   num(truncate), 
-   num(stat), 
-   num(lstat), 
-   num(readlink)
+static const char* _syscall_arg_types[NUM_SYSCALLS + 64] = { // +64?
+#define S(x) [__NR_##x]
+   // Syscalls with filenames in them
+   S(open)     = "f*",
+   S(creat)    = "f*",
+   S(unlink)   = "f",
+   S(access)   = "f*", 
+   S(truncate) = "f*",
+   S(stat)     = "f*",
+   S(lstat)    = "f*",
+   S(readlink) = "f*",
+   S(chmod)    = "fi",
+
+   // Syscalls with file descriptors
+   S(read)      = "i..",
+   S(write)     = "i..",
+   S(close)     = "i",
+   S(lseek)     = "i..",
+   S(dup)       = "i",
+   S(dup2)      = "ii",
+   S(ftruncate) = "i.",
+   S(fstat)     = "i.",
+   S(readv)     = "i..",
+   S(writev)    = "i..",
+   S(pread64)   = "i...",
+   S(pwrite64)  = "i...",
+   S(fcntl)     = "ii*",
+   S(ioctl)     = "ii",
+   S(fchmod)    = "ii",
+
+   // Others
+   S(exit)            = "i",
+   S(exit_group)      = "i",
+   S(arch_prctl)      = "i.",
+   S(getpid)          = "",
+   S(getuid)          = "",
+   S(brk)             = ".",
+   S(personality)     = "i",
+   S(getresuid)       = "*",
+   S(mmap)            = "*",
+   S(munmap)          = "*",
+   S(uname)           = ".",
+   S(gettid)          = "",
+   S(set_thread_area) = ".",
+   S(get_thread_area) = ".",
+   S(set_tid_address) = ".",
+   S(time)            = ".",
+   S(alarm)           = "i",
+   S(pause)           = "",
+   S(nanosleep)       = "*",
+#undef S
 };
 
-void init_syscall_info() {
-   int i;
-   for (i = 0; i < sizeof_array(_has_filename); i++) {
-      syscall_info(_has_filename[i])->flags |= HAS_FILENAME;
+inline const char *syscall_arg_types(unsigned int id) {
+   if (id < sizeof_array(_syscall_arg_types)) {
+      return _syscall_arg_types[id];
+   } else {
+      return NULL;
    }
 }
 
@@ -300,27 +329,42 @@ void get_syscall_args(syscall_args *args, int after) {
    args->result = user.regs.rax;
    if (after) return;
    // OJO: Asumimos (sys_type == 64) en box.c original
-   // TODO: Protección de syscalls de 32-bits en modo 64-bits
+   // TODO: Protección de syscalls de 32-bits en modo 64-bits???
    args->arg[1] = user.regs.rdi;
    args->arg[2] = user.regs.rsi;
    args->arg[3] = user.regs.rdx;
 }
 
+/*
+  Información sobre syscalls:
+  http://www.lxhp.in-berlin.de/lhpsysc0.html
+*/
+
 char *syscall_to_string(syscall_args *args) {
-   static char repr[4096]; // size?
+   static char repr[4096];
+   char *cur = repr;
 
    const char *name = syscall_name(args->sys);
    if (name == NULL) name = "?";
-   const intmax_t a1 = args->arg[1];
-   const intmax_t a2 = args->arg[2];
-   const intmax_t a3 = args->arg[3];
 
-   if (syscall_info(args->sys)->flags & HAS_FILENAME) {
-      const char *a1f = get_syscall_filename_arg(args->arg[1]);
-      sprintf(repr, "%s(\"%s\", %08jx, %08jx)", name, a1f, a2, a3);
-   } else {
-      sprintf(repr, "%s(%08jx, %08jx, %08jx)", name, a1, a2, a3);
+   intmax_t arg[] = { args->arg[1], args->arg[2], args->arg[3] };
+
+   const char *types = syscall_arg_types(args->sys);
+   if (types == NULL) types = "___";
+   int i, len = strlen(types);
+   
+   cur += sprintf(cur, "%s(", name);
+   for (i = 0; i < len; i++) {
+      if (types[i] == '*') break;
+      if (i > 0) *cur++ = ',';
+      switch (types[i]) {
+      case 'i': cur += sprintf(cur, "%lu", (uint64_t)arg[i]); break;
+      case 'f': cur += sprintf(cur, "\"%s\"", get_syscall_filename_arg(arg[i])); break;
+      case '.': cur += sprintf(cur, "_"); break;
+      default:  cur += sprintf(cur, "%lx", arg[i]);
+      };
    }
+   cur += sprintf(cur, ")");
    return repr;
 }
 
@@ -436,8 +480,6 @@ void guardian() {
 }
 
 int main(int argc, char *argv[]) {
-   init_syscall_info();
-
    int opt;
    while (-1 != (opt = getopt(argc, argv, "m:t:f:a"))) {
       switch (opt) {
