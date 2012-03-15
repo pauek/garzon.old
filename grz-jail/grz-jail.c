@@ -206,6 +206,7 @@ void accused_stopped(int stat) {
    } else {
       switch (sig) {
       case SIGABRT: report("Aborted\n");
+      case SIGINT:  report("Interrupted\n");
       case SIGSEGV: report("Segmentation Fault\n");
       case SIGXCPU: report("Time-Limit Exceeded\n");
       case SIGXFSZ: report("File-Size Exceeded\n");
@@ -236,7 +237,6 @@ void guardian() {
    int stat;
    
    // signal(INT)
-   // signal(ALRM)
 
    get_start_time();
    
@@ -265,9 +265,7 @@ int main(int argc, char *argv[]) {
       case 'm': max_memory = atoi(optarg) * 1024 * 1024; break;
       case 'f': max_file_size = atoi(optarg) * 1024 * 1024; break;
       case 'a': is_accused = 1; break;
-      default:
-         usage_message(0);
-         exit(EXIT_FAILURE);
+      default: usage_message(0);
       }
    }
 
@@ -280,9 +278,10 @@ int main(int argc, char *argv[]) {
    if (accused_pid == 0) { // Child
       the_accused(argc - optind, argv + optind);
    } else {
+      // fprintf(stderr, "Accused PID = %d\n", accused_pid);
       guardian();
    }
-   die("You entered The Matrix...\n");
+   die("Internal Error\n");
    return 3;
 }
 
