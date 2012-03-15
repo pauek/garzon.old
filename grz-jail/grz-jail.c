@@ -13,6 +13,7 @@
 #include <sys/ptrace.h>
 #include <sys/resource.h>
 #include <sys/signal.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/user.h>
@@ -181,8 +182,8 @@ void the_accused(int argc, char *argv[]) {
    die_if(ptrace(PTRACE_TRACEME) < 0, "ptrace(PTRACE_TRACEME)\n");
    // redirect stderr (has FSIZE limits!)
    close(2);
-   if (open("err", O_WRONLY | O_CREAT | O_TRUNC, 0666) != 2) {
-      die("Redirect stderr\n");
+   if (2 != open("/dev/null", O_WRONLY | O_APPEND)) {
+      die("Redirect stderr to '/dev/null'\n");
    }
    raise(SIGSTOP);
    char *env[] = { NULL };
@@ -401,6 +402,11 @@ int ellapsed_time_ms() {
    return wall.tv_sec * 1000 + wall.tv_usec/1000;
 }
 
+void accused_check_exe(char *argv0) {
+   struct stat _stat;
+   die_if(stat(argv0, &_stat) == -1, "Cannot find executable '%s'\n", argv0);
+}
+
 
 /** Guardian **/
 
@@ -431,7 +437,7 @@ int main(int argc, char *argv[]) {
    init_syscall_info();
 
    int opt;
-   while ((opt = getopt(argc, argv, "m:t:f:a")) != -1) {
+   while (-1 != (opt = getopt(argc, argv, "m:t:f:a"))) {
       switch (opt) {
       case 't': max_cpu_seconds = atoi(optarg); break;
       case 'm': max_memory = atoi(optarg) * 1024 * 1024; break;
@@ -440,15 +446,19 @@ int main(int argc, char *argv[]) {
       default: usage_message(0);
       }
    }
+   argv += optind;
+   argc -= optind;
 
-   if ((argc - optind) != 1) {
+   if (argc < 1) {
       usage_message("Wrong number of arguments\n");
    }
+
+   accused_check_exe(argv[0]);
 
    accused_pid = fork();
    die_if(accused_pid < 0, "Couldn't fork\n");
    if (accused_pid == 0) { // Child
-      the_accused(argc - optind, argv + optind);
+      the_accused(argc, argv);
    } else {
       // fprintf(stderr, "Accused PID = %d\n", accused_pid);
       guardian();
