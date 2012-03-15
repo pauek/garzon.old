@@ -271,9 +271,6 @@ void accused_signaled(int stat) {
 }
 
 int curr_sys = -1;
-int syscall_count = 0;
-
-#define NATIVE_NR_execve 59 /* 64-bit execve */
 
 const char *get_syscall_filename_arg(uint64_t addr) {
    static char namebuf[4096];
@@ -309,38 +306,42 @@ void get_syscall_args(syscall_args *args, int after) {
    args->arg[3] = user.regs.rdx;
 }
 
+char *syscall_to_string(syscall_args *args) {
+   static char repr[4096]; // size?
+
+   const char *name = syscall_name(args->sys);
+   if (name == NULL) name = "?";
+   const intmax_t a1 = args->arg[1];
+   const intmax_t a2 = args->arg[2];
+   const intmax_t a3 = args->arg[3];
+
+   if (syscall_info(args->sys)->flags & HAS_FILENAME) {
+      const char *a1f = get_syscall_filename_arg(args->arg[1]);
+      sprintf(repr, "%s(\"%s\", %08jx, %08jx)", name, a1f, a2, a3);
+   } else {
+      sprintf(repr, "%s(%08jx, %08jx, %08jx)", name, a1, a2, a3);
+   }
+   return repr;
+}
+
 void accused_before_syscall() {
    syscall_args args;
    get_syscall_args(&args, 0);
    curr_sys = args.sys;
    if (!passed_exec) {
-      if (args.sys == NATIVE_NR_execve) {
+      if (args.sys == SIGNAL(execve)) {
          passed_exec = 1;
          return;
       }
    }
-   syscall_count++;
 
    // Maybe sample mem peak
    if (args.sys == SIGNAL(exit) ||
        args.sys == SIGNAL(exit_group)) {
       accused_sample_mem_peak();
    }
-
-   const char *name = syscall_name(args.sys);
-   if (name == NULL) name = "?";
-
-   if (syscall_info(args.sys)->flags & HAS_FILENAME) {
-      fprintf(stderr, "%s(\"%s\", %08jx, %08jx)\n", name, 
-              get_syscall_filename_arg(args.arg[1]),
-              (intmax_t)args.arg[2],
-              (intmax_t)args.arg[3]);
-   } else {
-      fprintf(stderr, "%s(%08jx, %08jx, %08jx)\n", name, 
-              (intmax_t)args.arg[1],
-              (intmax_t)args.arg[2],
-              (intmax_t)args.arg[3]);
-   }
+   
+   fprintf(stderr, "%s\n", syscall_to_string(&args));
 
    // - Filtrar las syscalls no permitidas
    // - Almacenar el syscall
@@ -379,6 +380,7 @@ void accused_stopped(int stat) {
       switch (sig) {
       case SIGABRT: report("Aborted\n");
       case SIGINT:  report("Interrupted\n");
+      case SIGILL:  report("Illegal Instruction\n");
       case SIGSEGV: report("Segmentation Fault\n");
       case SIGXCPU: report("Time-Limit Exceeded\n");
       case SIGXFSZ: report("File-Size Exceeded\n");
