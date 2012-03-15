@@ -1,0 +1,8 @@
+#!/bin/bash
+
+gcc -o a inf_loop.c
+g++ -static -o b mem_sink.cc
+gcc -o c segfault.c
+gcc -o d sigint.c
+g++ -static -o e good_vector_1e4_rep.cc
+g++ -static -o f good_vector_1e6.cc
