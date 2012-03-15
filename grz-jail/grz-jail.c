@@ -15,7 +15,6 @@
 #include <sys/time.h>
 #include <sys/user.h>
 #include <sys/wait.h>
-#include <asm/unistd.h>
 
 int is_accused = 0;
 int max_cpu_seconds = 2;
@@ -58,6 +57,7 @@ void FORMAT __die(int code, char *msg, ...) {
 #define die_if(cond, ...) if (cond) __die(2, __VA_ARGS__)
 
 #define SIGNAL(x) __NR_##x
+#define sizeof_array(A) (int)(sizeof(A)/sizeof(A[0]))
 
 void setlimit(int what, rlim_t max) {
    if (max > 0) {
@@ -73,7 +73,7 @@ inline int milliseconds(struct timeval *t) {
 }
 
 #define PROC_BUF_SIZE 4096
-static void read_proc_file(pid_t pid, char *buf, char *name, int *fdp) {
+void read_proc_file(pid_t pid, char *buf, char *name, int *fdp) {
    if (!*fdp) {
       sprintf(buf, "/proc/%d/%s", (int) pid, name);
       *fdp = open(buf, O_RDONLY);
@@ -86,11 +86,24 @@ static void read_proc_file(pid_t pid, char *buf, char *name, int *fdp) {
    buf[c] = 0;
 }
 
-static void read_proc_status(pid_t pid, char *buf) {
+void read_proc_status(pid_t pid, char *buf) {
    static int proc_status_fd;
    read_proc_file(pid, buf, "status", &proc_status_fd);
 }
-   
+
+#define __SYSCALL(a, b) [a] = #b,
+   static char *syscall_names[] = {
+#include <asm/unistd.h>
+   };
+#undef __SYSCALL
+
+const char *syscall_name(unsigned int id) {
+   if (id < sizeof_array(syscall_names)) {
+      return syscall_names[id] + 4; // + 4 to get rid of "sys_"
+   } else {
+      return 0;
+   }
+}
 
 /** Accused **/
 
@@ -234,6 +247,10 @@ void accused_before_syscall() {
        args.sys == SIGNAL(exit_group)) {
       accused_sample_mem_peak();
    }
+
+   const char *name = syscall_name(args.sys);
+   if (name == NULL) name = "?";
+   fprintf(stderr, "signal: %s\n", name);
 
    // - Filtrar las syscalls no permitidas
    // - Almacenar el syscall
