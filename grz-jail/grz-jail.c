@@ -1,4 +1,5 @@
 
+#define _LARGEFILE64_SOURCE
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -13,6 +14,7 @@
 #include <sys/resource.h>
 #include <sys/signal.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/user.h>
 #include <sys/wait.h>
 
@@ -74,15 +76,16 @@ inline int milliseconds(struct timeval *t) {
 
 #define PROC_BUF_SIZE 4096
 void read_proc_file(pid_t pid, char *buf, char *name, int *fdp) {
+   /* Taken from box.c almost unchanged */
    if (!*fdp) {
       sprintf(buf, "/proc/%d/%s", (int) pid, name);
       *fdp = open(buf, O_RDONLY);
-      die_if(*fdp < 0, "open(%s): %s", buf, strerror(errno));
+      die_if(*fdp < 0, "open(%s): %s\n", buf, strerror(errno));
    }
    lseek(*fdp, 0, SEEK_SET);
    int c = read(*fdp, buf, PROC_BUF_SIZE-1);
-   die_if(c < 0, "read on /proc/$pid/%s: %s", name, strerror(errno));
-   die_if(c >= PROC_BUF_SIZE-1, "/proc/$pid/%s too long", name);
+   die_if(c < 0, "read on /proc/$pid/%s: %s\n", name, strerror(errno));
+   die_if(c >= PROC_BUF_SIZE-1, "/proc/$pid/%s too long\n", name);
    buf[c] = 0;
 }
 
@@ -91,17 +94,69 @@ void read_proc_status(pid_t pid, char *buf) {
    read_proc_file(pid, buf, "status", &proc_status_fd);
 }
 
-#define __SYSCALL(a, b) [a] = #b,
-   static char *syscall_names[] = {
+int read_user_mem(pid_t pid, uint64_t addr, char *buf, int len) {
+   /* Taken from box.c almost unchanged */
+   static int mem_fd;
+   if (!mem_fd) {
+      char memname[64];
+      sprintf(memname, "/proc/%d/mem", (int)pid);
+      mem_fd = open(memname, O_RDONLY);
+      if (mem_fd < 0)
+         die("open(%s): %m", memname);
+   }
+   if (lseek(mem_fd, addr, SEEK_SET) < 0) {
+      die("lseek(mem): %m");
+   }
+   return read(mem_fd, buf, len);
+}
+
+typedef struct {
+   const char *name;
+   unsigned char flags;
+} _sysinfo;
+
+enum FLAGS {
+   HAS_FILENAME = 1,
+};
+
+#define __SYSCALL(a, b) [a] = { #b, 0 },
+   _sysinfo _syscall_table[] = {
 #include <asm/unistd.h>
    };
 #undef __SYSCALL
 
-const char *syscall_name(unsigned int id) {
-   if (id < sizeof_array(syscall_names)) {
-      return syscall_names[id] + 4; // + 4 to get rid of "sys_"
+#define num(id)  __NR_##id
+
+inline _sysinfo *syscall_info(unsigned int id) {
+   static _sysinfo dummy;
+   dummy.name = "?";
+   dummy.flags = 0;
+   if (id < sizeof_array(_syscall_table)) {
+      return &_syscall_table[id];
    } else {
-      return 0;
+      return &dummy;
+   }
+}
+
+inline const char *syscall_name(unsigned int id) {
+   return syscall_info(id)->name + 4;
+}
+
+int _has_filename[] = {
+   num(open), 
+   num(creat), 
+   num(unlink), 
+   num(access), 
+   num(truncate), 
+   num(stat), 
+   num(lstat), 
+   num(readlink)
+};
+
+void init_syscall_info() {
+   int i;
+   for (i = 0; i < sizeof_array(_has_filename); i++) {
+      syscall_info(_has_filename[i])->flags |= HAS_FILENAME;
    }
 }
 
@@ -135,28 +190,9 @@ void the_accused(int argc, char *argv[]) {
    die("execve(\"%s\"): %s\n", argv[0], strerror(errno));
 }
 
-int wait_for_accused(int *stat) {
-   pid_t p = wait4(accused_pid, stat, WUNTRACED, &usage);
-   if (p < 0 && errno == EINTR) return 1;
-   die_if(p < 0, "wait4 error %d\n", errno);
-   die_if(p != accused_pid, "wait4: unknown pid '%d'\n", p);
-   return 0;
-}
-
-void kill_accused() {
-   if (accused_pid > 0) {
-      kill(-accused_pid, SIGKILL); // ?
-      kill( accused_pid, SIGKILL);
-      int p, stat;
-      do {
-         p = wait4(accused_pid, &stat, 0, &usage);
-      } while (p < 0 && errno == EINTR);
-      die_if(p < 0, "Lost track of the accused!");
-   }
-}
-
 void accused_sample_mem_peak() {
-   /* Taken from box.c directly */
+   /* Taken from box.c almost unchanged */
+
    /*
     *  We want to find out the peak memory usage of the process, which
     *  is maintained by the kernel, but unforunately it gets lost when
@@ -186,6 +222,27 @@ void accused_sample_mem_peak() {
    }
 }
 
+int wait_for_accused(int *stat) {
+   pid_t p = wait4(accused_pid, stat, WUNTRACED, &usage);
+   if (p < 0 && errno == EINTR) return 1;
+   die_if(p < 0, "wait4 error %d\n", errno);
+   die_if(p != accused_pid, "wait4: unknown pid '%d'\n", p);
+   return 0;
+}
+
+void kill_accused() {
+   if (accused_pid > 0) {
+      accused_sample_mem_peak();
+      ptrace(PTRACE_KILL, accused_pid);
+      kill(-accused_pid, SIGKILL); // ?
+      kill( accused_pid, SIGKILL);
+      int p, stat;
+      do {
+         p = wait4(accused_pid, &stat, 0, &usage);
+      } while (p < 0 && errno == EINTR);
+      die_if(p < 0, "Lost track of the accused!");
+   }
+}
 
 inline int final_time() {
    struct timeval total;
@@ -216,6 +273,27 @@ int curr_sys = -1;
 int syscall_count = 0;
 
 #define NATIVE_NR_execve 59 /* 64-bit execve */
+
+const char *get_syscall_filename_arg(uint64_t addr) {
+   static char namebuf[4096];
+   char *p = namebuf, *end = namebuf;
+   do {
+      if (p >= end) {
+         int remains = PAGE_SIZE - (addr & (PAGE_SIZE-1));
+         int l = namebuf + sizeof(namebuf) - end;
+         if (l > remains) l = remains;
+         if (!l) report("FA: Access to file with name too long\n");
+         remains = read_user_mem(accused_pid, addr, end, l);
+         die_if(remains < 0, "read(mem): %s\n", strerror(errno));
+         if (!remains) {
+            report("FA: Access to file with name out of memory\n");
+         }
+         end += remains;
+         addr += remains;
+      }
+   } while (*p++);
+   return namebuf;
+}
 
 void get_syscall_args(syscall_args *args, int after) {
    int ret = ptrace(PTRACE_GETREGS, accused_pid, NULL, &user);
@@ -250,7 +328,18 @@ void accused_before_syscall() {
 
    const char *name = syscall_name(args.sys);
    if (name == NULL) name = "?";
-   fprintf(stderr, "signal: %s\n", name);
+
+   if (syscall_info(args.sys)->flags & HAS_FILENAME) {
+      fprintf(stderr, "%s(\"%s\", %08jx, %08jx)\n", name, 
+              get_syscall_filename_arg(args.arg[1]),
+              (intmax_t)args.arg[2],
+              (intmax_t)args.arg[3]);
+   } else {
+      fprintf(stderr, "%s(%08jx, %08jx, %08jx)\n", name, 
+              (intmax_t)args.arg[1],
+              (intmax_t)args.arg[2],
+              (intmax_t)args.arg[3]);
+   }
 
    // - Filtrar las syscalls no permitidas
    // - Almacenar el syscall
@@ -339,8 +428,9 @@ void guardian() {
 }
 
 int main(int argc, char *argv[]) {
-   int opt;
+   init_syscall_info();
 
+   int opt;
    while ((opt = getopt(argc, argv, "m:t:f:a")) != -1) {
       switch (opt) {
       case 't': max_cpu_seconds = atoi(optarg); break;
