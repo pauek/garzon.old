@@ -82,7 +82,7 @@ void usage_message(char *msg) {
       fprintf(stderr, "%s", msg);
    }
    static const char *_usage = 
-      "usage: grz-jail [options...] <exe>\n"
+      "usage: grz-jail [options...] <directory>\n"
       "\n"
       "Options:\n"
       "   -m <mem>   Max megabytes of memory\n"
@@ -103,7 +103,7 @@ void FORMAT __die(int code, char *msg, ...) {
    va_list args;
    va_start(args, msg);
    vfprintf(stderr, msg, args);
-   exit(2);
+   exit(code);
 }
 
 #define report(...) __die(0, __VA_ARGS__)
@@ -305,7 +305,9 @@ typedef struct _syscall_args {
 } syscall_args;
 
 
-void the_accused(int argc, char *argv[]) {
+char exename[1024];
+
+void the_accused(char *dir) {
    setlimit(RLIMIT_CPU,   max_cpu_seconds);
    setlimit(RLIMIT_AS,    max_memory);
    setlimit(RLIMIT_FSIZE, max_file_size);
@@ -316,9 +318,10 @@ void the_accused(int argc, char *argv[]) {
       die("Redirect stderr to '/dev/null'\n");
    }
    raise(SIGSTOP);
-   char *env[] = { NULL };
-   execve(argv[0], argv, env);
-   die("execve(\"%s\"): %s\n", argv[0], strerror(errno));
+   char *argv[] = { NULL };
+   char *env[] =  { NULL };
+   execve(exename, argv, env);
+   die("execve(\"%s\"): %s\n", exename, strerror(errno));
 }
 
 void accused_sample_mem_peak() {
@@ -561,8 +564,11 @@ int ellapsed_time_ms() {
 }
 
 void check_exe(char *argv0) {
+   // look for <directory>/exe
+   sprintf(exename, "%s/exe", argv0); 
    struct stat _stat;
-   die_if(stat(argv0, &_stat) == -1, "Cannot find executable '%s'\n", argv0);
+   die_if(stat(exename, &_stat) == -1, 
+          "Cannot find executable '%s'\n", exename);
 }
 
 
@@ -608,7 +614,7 @@ int main(int argc, char *argv[]) {
    argv += optind;
    argc -= optind;
 
-   if (argc < 1) {
+   if (argc != 1) {
       usage_message("Wrong number of arguments\n");
    }
 
@@ -624,7 +630,7 @@ int main(int argc, char *argv[]) {
    accused_pid = fork();
    die_if(accused_pid < 0, "Couldn't fork\n");
    if (accused_pid == 0) { // Child
-      the_accused(argc, argv);
+      the_accused(argv[0]);
    } else {
       guardian();
    }

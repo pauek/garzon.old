@@ -9,28 +9,18 @@ import (
 	"fmt"
 	"crypto/sha1"
 	"log"
-	"bytes"
 	"strings"
+	"bytes"
 	
 	"garzon/eval/lang"
 )
+
+// utils //
 
 func _sha1(s string) string {
 	hash := sha1.New()
 	io.WriteString(hash, s)
 	return fmt.Sprintf("%x", hash.Sum(nil))
-}
-
-type Result int
-
-type Test interface {
-	Run(T ProgramEvaluation) (Result, error)
-}
-
-// InputTest /////////////////////////////////////////////////////////
-
-type InputTest struct {
-	Input string
 }
 
 func prefix(s string, length int) string {
@@ -40,33 +30,62 @@ func prefix(s string, length int) string {
       max = len(s)
 		suffix = ""
    }
-	return strings.Replace(s[:max], "\n", `↩`, -1) + suffix
+	return strings.Replace(s[:max], "\n", `\n`, -1) + suffix
 }
 
-func (I InputTest) Run(T ProgramEvaluation) (Result, error) {
-	outputs  := make(map[string]*bytes.Buffer)
-	for _, prog := range []string{"model", "accused"} {
-		err := T.SwitchTo(prog) 
-		if err != nil {
-			return Result(-1), err
-		}
-		log.Printf("Running input test (%s): '%s'", prog, prefix(I.Input, 10));
-		cmd := T.GetCommand()
-		cmd.Stdin  = strings.NewReader(I.Input)
-		var output bytes.Buffer
-		cmd.Stdout = &output
-		outputs[prog] = &output
-		err = cmd.Run()
-		if err != nil {
-			return Result(-1), fmt.Errorf("Couldn't execute '%s': %v", prog, err)
-		} else {
-			log.Printf("Output: '%s'", prefix(output.String(), 10))
-		}
+// Tests /////////////////////////////////////////////////////////////
+
+type Result struct {
+	Veredict int
+	Reason   interface{}
+}
+
+const (
+	ACCEPT = 0
+   REJECT = 1
+)
+
+type ProgramTester interface {
+	SetUp(ProgramEvaluation) error
+	CleanUp(ProgramEvaluation) error
+	Run(ProgramEvaluation, *exec.Cmd) error
+	Veredict() Result
+}
+
+type InputTester struct {
+	Input string
+	output map[string]string
+}
+
+func (I *InputTester) SetUp(E ProgramEvaluation) error {
+	return nil
+}
+
+func (I *InputTester) CleanUp(E ProgramEvaluation) error {
+	return nil
+}
+
+func (I *InputTester) Run(E ProgramEvaluation, cmd *exec.Cmd) error {
+	if (E.Mode() == "model") {
+		I.output = make(map[string]string)
 	}
-	if outputs["model"].String() != outputs["accused"].String() {
-		return Result(1), nil
+	var output, status bytes.Buffer
+	cmd.Stdin  = strings.NewReader(I.Input)
+	cmd.Stdout = &output
+	cmd.Stderr = &status
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s", status.String())
+		return fmt.Errorf("Couldn't execute '%s': %s", E.Mode(), err)
 	} 
-	return Result(0), nil
+	I.output[E.Mode()] = output.String()
+	return nil
+}
+
+func (I *InputTester) Veredict() Result {
+	if I.output["model"] == I.output["accused"] {
+		return Result{Veredict:ACCEPT}
+	} 
+	return Result{Veredict:REJECT, Reason: I.output}
 }
 
 // ProgramEvaluation /////////////////////////////////////////////////
@@ -77,147 +96,163 @@ type Program struct {
 
 type ProgramEvaluation struct {
 	Accused, Model Program
-	Limits struct { Memory, Time, DiskSpace int }
-	Tests []Test
-
-	curr string // current program: "model" or "accused"
-	dir  string // directory used for testing
+	Limits struct { Memory, Time, FileSize int }
+	
+	mode string // current program: "model" or "accused"
+	dir  string // working directory
 }
 
-type Results struct {
-	Values []Result
+func (E *ProgramEvaluation) EvaluationDir() string {
+	return E.dir 
 }
 
-func (T *ProgramEvaluation) cleanUp() {
+func (E *ProgramEvaluation) ExecutionDir() string { 
+	return E.dir + "/eval"
 }
 
-func (T *ProgramEvaluation) GetCommand() *exec.Cmd {
-	args := []string{}
-	if T.Limits.Memory > 0 {
-		args = append(args, "-m")
-		args = append(args, fmt.Sprintf("%d", T.Limits.Memory))
-	}
-	if T.Limits.Time > 0 {
-		args = append(args, "-t")
-		args = append(args, fmt.Sprintf("%d", T.Limits.Time))
-	}
-	if T.Limits.DiskSpace > 0 {
-		args = append(args, "-f")
-		args = append(args, fmt.Sprintf("%d", T.Limits.DiskSpace))
-	}
-	if T.curr == "accused" {
-		args = append(args, "-a")
-	}
-	args = append(args, "./exe")
-   return exec.Command("grz-jail", args...)
+func (E *ProgramEvaluation) Mode() string {
+	return E.mode
 }
 
-func (T *ProgramEvaluation) SwitchTo(whom string) error {
+func (E *ProgramEvaluation) SwitchTo(whom string) error {
 	if whom != "model" && whom != "accused" {
 		return fmt.Errorf("Program '%s' not known")
 	}
-	cmd := exec.Command("cp", whom, "exe")
+	from := fmt.Sprintf("%s/.%s/exe", E.dir, whom)
+	to   := fmt.Sprintf("%s/eval/exe", E.dir)
+	cmd := exec.Command("cp", from, to)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("Couldn't switch to '%s'", whom)
+		return fmt.Errorf("Couldn't copy '%s' to '%s'", from, to)
 	} 
-	// Borrar el fichero de syscalls cada vez!
-	if whom == "model" {
-		path := T.dir[1:] + "/exe"
-		path  = strings.Replace(path, "/", "_", -1)
-		path  = strings.Replace(path, "-", "_", -1)
-		tracefilename := fmt.Sprintf("%s/.systrace/%s", os.Getenv("HOME"), path)
-		_, err := os.Stat(tracefilename)
-		if !os.IsNotExist(err) {
-			cmd := exec.Command("rm", tracefilename)
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("Couldn't erase systrace file '%s'", tracefilename)
-			} 
+	E.mode = whom
+	return nil
+}
+
+func (E *ProgramEvaluation) RunCommand() (cmd *exec.Cmd) {
+	args := []string{}
+	addOption := func (flag string, val int) {
+		if val > 0 {
+			args = append(args, flag)
+			args = append(args, fmt.Sprintf("%d", val))
 		}
 	}
-	T.curr = whom
-	return nil
+	addOption("-m", E.Limits.Memory)
+	addOption("-t", E.Limits.Time)
+	addOption("-f", E.Limits.FileSize)
+	if E.mode == "accused" {
+		args = append(args, "-a")
+	}
+	args = append(args, E.dir + "/eval")
+   cmd = exec.Command("grz-jail", args...)
+	cmd.Dir = E.ExecutionDir()
+	return
 }
 
 // ProgramEvaluator //////////////////////////////////////////////////
 
-var ProgramEvaluator *ProgramEvaluatorType
+var Evaluator *ProgramEvaluator
 
-type ProgramEvaluatorType struct {
+type ProgramEvaluator struct {
 	BaseDir string
 }
 
 func init() {
-	ProgramEvaluator = new(ProgramEvaluatorType)
-	ProgramEvaluator.BaseDir = os.Getenv("HOME")
+	Evaluator = new(ProgramEvaluator)
+	Evaluator.BaseDir = os.Getenv("HOME")
+	evaluations = make(map[string]ProgramEvaluation)
 }
 
-func (E *ProgramEvaluatorType) Run(T ProgramEvaluation, R *Results) error {
-	var aLang, mLang *lang.Language
-	var err error
-	var ok bool
+var evaluations map[string]ProgramEvaluation
 
-	R = nil
-	
+func (E *ProgramEvaluator) StartEvaluation(P ProgramEvaluation, ID *string) error {
 	// 1. Determine languages
-	aLang, ok = lang.Languages[T.Accused.Lang]
-	if ! ok {
-		return fmt.Errorf("Unsupported language '%s'", T.Accused.Lang)
-	}
-	mLang, ok = lang.Languages[T.Model.Lang]
-	if ! ok {
-		return fmt.Errorf("Unsupported language '%s'", T.Model.Lang)
-	}
+	Lang := make(map[string]string)
+	Code := make(map[string]string)
+	Lang["model"]   = P.Model.Lang
+	Lang["accused"] = P.Accused.Lang
+	Code["model"]   = P.Model.Code
+	Code["accused"] = P.Accused.Code
 
 	// 2. Prepare Directory
-	dir := E.BaseDir + "/" + _sha1(T.Accused.Code)
-	T.dir = dir
+	id  := _sha1(Code["accused"])
+	dir := E.BaseDir + "/" + id
+	P.dir = dir
 	log.Printf("Preparing directory '%s'", dir)
-	lastdir, _ := os.Getwd() // TODO: handle error?
-	os.Mkdir(dir, 0700)
-	os.Chdir(dir)
-	defer func () {
-		// 6. Clean Up
-		os.Chdir(lastdir)
-		/*
-		log.Printf("Removing directory '%s'", dir)
-		cmd := exec.Command("rm", "-rf", dir)
-		if err := cmd.Run(); err != nil {
-			log.Fatal("Couldn't remove directory %s", dir)
-		}
-      */
-	} ()
-
-	// 3. Write Accused and Model
-	aFile := fmt.Sprintf("accused.%s", aLang.Extension)
-	ioutil.WriteFile(aFile, []byte(T.Accused.Code), 0600)
-	mFile := fmt.Sprintf("model.%s", mLang.Extension)
-	ioutil.WriteFile(mFile, []byte(T.Model.Code), 0600)
-	log.Printf("Written '%s' and '%s'", aFile, mFile)
-
-	// 4. Compile Accused and Model
-	log.Printf("Compiling %s ('%s')", aFile, prefix(T.Accused.Code, 30))
-	err = aLang.Functions.Compile(aFile, "accused")
-	if err != nil {
-		return fmt.Errorf("Error compiling 'accused': %v", err)
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("Couldn't remove directory '%s'", dir)
 	}
-	log.Printf("Compiling %s ('%s')", mFile, prefix(T.Model.Code, 30))
-	err = mLang.Functions.Compile(mFile, "model")
-	if err != nil {
-		return fmt.Errorf("Error compiling 'model': %v", err)
+	for _, subdir := range []string{"", "/.model", "/.accused", "/eval"} {
+		if err := os.Mkdir(dir + subdir, 0700); err != nil {
+			return fmt.Errorf("Couldn't make directory '%s'", dir + subdir)
+		}
 	}
 
-	R = new(Results)
-	R.Values = make([]Result, len(T.Tests))
-
-	// 5. Run tests
-	for i, test := range T.Tests {
-		R.Values[i], err = test.Run(T)
-		if err != nil {
-			return fmt.Errorf("Error testing: %v", err)
+	// 3. Write and Compile Accused and Model
+	writeAndCompile := func (whom string) error {
+		language, ok := lang.Languages[Lang[whom]]
+		if ! ok {
+			return fmt.Errorf("Unsupported language '%s'", Lang[whom])
+		} 
+		codefile := fmt.Sprintf("%s/.%s/code.%s", dir, whom, language.Extension)
+		exefile  := fmt.Sprintf("%s/.%s/exe", dir, whom)
+		if err := ioutil.WriteFile(codefile, []byte(Code[whom]), 0600); err != nil {
+			return fmt.Errorf("Couldn't write %s file '%s'", whom, codefile)
 		}
-	} 
+		log.Printf("Compiling '%s' ('%s')", codefile, prefix(Code[whom], 30))
+		if err := language.Functions.Compile(codefile, exefile); err != nil {
+			os.RemoveAll(dir)
+			return fmt.Errorf("Error compiling '%s': %v", whom, err)
+		}
+		return nil
+	}
+	if err := writeAndCompile("model"); err != nil { 
+		return err 
+	}
+	if err := writeAndCompile("accused"); err != nil {
+		return err
+	}
 
-	// 6. Clean up [deferred on step 2]
+	// 4. Store Evaluation object
+	evaluations[id] = P
+	*ID = id
+	return nil
+}
 
-	return nil		
+type TestInfo struct {
+	EvaluationID string
+	Test ProgramTester
+}
+
+func (E *ProgramEvaluator) RunTest(T TestInfo, Veredict *Result) error {
+	P, ok := evaluations[T.EvaluationID]
+	if ! ok {
+		return fmt.Errorf("Evaluation ID '%s' not found", T.EvaluationID)
+	}
+	if err := P.SwitchTo("model");   err != nil { return err }
+	if err := T.Test.SetUp(P);       err != nil { return err }
+	cmd := P.RunCommand()
+	log.Printf("Executing 'model'")
+	if err := T.Test.Run(P, cmd);    err != nil { return err }
+	if err := T.Test.CleanUp(P);     err != nil { return err }
+	if err := P.SwitchTo("accused"); err != nil { return err }
+	if err := T.Test.SetUp(P);       err != nil { return err }
+	cmd  = P.RunCommand()
+	log.Printf("Executing 'accused'")
+	if err := T.Test.Run(P, cmd);    err != nil { return err }
+	if err := T.Test.CleanUp(P);     err != nil { return err }
+	*Veredict = T.Test.Veredict()
+	return nil
+}
+
+func (E *ProgramEvaluator) EndEvaluation(EvaluationID string, ok *bool) error {
+	*ok = false
+	P, found := evaluations[EvaluationID]
+	if ! found {
+		return fmt.Errorf("Evaluation ID '%s' not found", EvaluationID)
+	}
+	if err := os.RemoveAll(P.dir); err != nil {
+		return fmt.Errorf("Couldn't remove directory '%s': %s", P.dir, err)
+	}
+	*ok = true
+	return nil
 }
