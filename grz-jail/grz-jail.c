@@ -68,7 +68,9 @@
 #include <sys/user.h>
 #include <sys/wait.h>
 
+const char *perm_file = ".syscalls";
 int accused_mode = 0;
+int perm_fd = -1;
 int max_cpu_seconds = 2;
 int max_memory = 64 * 1024 * 1024;
 int max_file_size = 1024; // 1 Kbyte (for stderr)
@@ -108,7 +110,7 @@ void FORMAT __die(int code, char *msg, ...) {
 #define die(...)    __die(2, __VA_ARGS__)
 #define die_if(cond, ...) if (cond) __die(2, __VA_ARGS__)
 
-#define SIGNAL(x) __NR_##x
+#define SYS(x) __NR_##x
 #define sizeof_array(A) (int)(sizeof(A)/sizeof(A[0]))
 
 void setlimit(int what, rlim_t max) {
@@ -237,6 +239,56 @@ inline const char *syscall_arg_types(unsigned int id) {
    } else {
       return NULL;
    }
+}
+
+/** List of syscalls **/
+
+typedef struct _Node {
+   const char *repr;
+   struct _Node *next;
+} Node;
+
+Node *first = NULL;
+Node *last  = NULL;
+
+void syscall_list_add(const char *repr) {
+   void *p = malloc(sizeof(Node) + strlen(repr) + 1);
+   Node *N = (Node*)p;
+   char *R = (char *)(p + sizeof(Node));
+   strcpy(R, repr);
+   N->repr = R;
+   N->next = NULL;
+   if (first == NULL) {
+      first = last = N;
+   } else {
+      last->next = N;
+      last = N;
+   }
+}
+
+void syscall_list_read() {
+   FILE *F = fopen(perm_file, "r");
+   die_if(F == NULL, "Cannot read file '%s': %s\n", perm_file, strerror(errno));
+   size_t n = 4096, sz;
+   char *line = malloc(n);
+   while (-1 != (sz = getline(&line, &n, F))) {
+      die_if(n != 4096, "Signal representation too long\n");
+      line[sz-1] = '\0'; // remove '\n'
+      // fprintf(stderr, "read: '%s'\n", line);
+      syscall_list_add(line);
+   }
+   free(line);
+}
+
+int syscall_list_find(const char *repr) {
+   Node *curr = first;
+   while (curr != NULL) {
+      if (0 == strcmp(curr->repr, repr)) {
+         return 1;
+      }
+      curr = curr->next;
+   }
+   return 0;
 }
 
 /** Accused **/
@@ -385,8 +437,8 @@ void get_syscall_args(syscall_args *args, int after) {
 }
 
 /*
-  Información sobre syscalls:
-  http://www.lxhp.in-berlin.de/lhpsysc0.html
+   Información sobre syscalls:
+   http://www.lxhp.in-berlin.de/lhpsysc0.html
 */
 
 char *syscall_to_string(syscall_args *args) {
@@ -422,22 +474,33 @@ void accused_before_syscall() {
    get_syscall_args(&args, 0);
    curr_sys = args.sys;
    if (!passed_exec) {
-      if (args.sys == SIGNAL(execve)) {
+      if (args.sys == SYS(execve)) {
          passed_exec = 1;
          return;
       }
    }
 
    // Maybe sample mem peak
-   if (args.sys == SIGNAL(exit) ||
-       args.sys == SIGNAL(exit_group)) {
+   if (args.sys == SYS(exit) || args.sys == SYS(exit_group)) {
       accused_sample_mem_peak();
    }
    
-   fprintf(stderr, "%s\n", syscall_to_string(&args));
+   char *repr = syscall_to_string(&args);
+   // fprintf(stderr, "%s\n", repr);
 
-   // - Filtrar las syscalls no permitidas
-   // - Almacenar el syscall
+   if (accused_mode) {
+      if (!syscall_list_find(repr)) {
+         report("Forbidden Syscall [%s]\n", repr);
+      }
+   } else {
+      if (!syscall_list_find(repr)) {
+         syscall_list_add(repr);
+         int len = strlen(repr);
+         repr[len] = '\n';
+         int n = write(perm_fd, repr, len + 1);
+         die_if(n < len + 1, "Couldn't write to '%s'\n", perm_file);
+      }
+   }
 }
 
 void accused_after_syscall() {
@@ -497,7 +560,7 @@ int ellapsed_time_ms() {
    return wall.tv_sec * 1000 + wall.tv_usec/1000;
 }
 
-void accused_check_exe(char *argv0) {
+void check_exe(char *argv0) {
    struct stat _stat;
    die_if(stat(argv0, &_stat) == -1, "Cannot find executable '%s'\n", argv0);
 }
@@ -528,6 +591,9 @@ void guardian() {
    }
 }
 
+
+/** Main **/
+
 int main(int argc, char *argv[]) {
    int opt;
    while (-1 != (opt = getopt(argc, argv, "m:t:f:a"))) {
@@ -546,14 +612,20 @@ int main(int argc, char *argv[]) {
       usage_message("Wrong number of arguments\n");
    }
 
-   accused_check_exe(argv[0]);
+   check_exe(argv[0]);
+
+   if (accused_mode) {
+      syscall_list_read();
+   } else {
+      perm_fd = open(perm_file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+      die_if(perm_fd < 0, "Couldn't open '%s'\n", perm_file);
+   }
 
    accused_pid = fork();
    die_if(accused_pid < 0, "Couldn't fork\n");
    if (accused_pid == 0) { // Child
       the_accused(argc, argv);
    } else {
-      // fprintf(stderr, "Accused PID = %d\n", accused_pid);
       guardian();
    }
    die("Internal Error\n");
