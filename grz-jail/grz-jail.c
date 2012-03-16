@@ -1,4 +1,53 @@
 
+/* 
+   Garzón Jail                               (c) 2012, Pau Fernández
+   -----------
+
+   grz-jail is a sandbox to execute programs submitted to the Garzón
+   Judge system. It is different from other sandboxes because in
+   grz-jail, instead of deciding beforehand what syscalls to filter,
+   the execution of a "model" program serves as a filter for the
+   "accused" program (the one being judged). That is, the "accused"
+   program can only execute the syscalls that the "model" did. 
+
+   In this way, you have more flexibility to specify, for each
+   problem, what is permitted and what is not (provided that the
+   solutions, i.e. the "models", for each problem are trusted).
+
+   To achieve this, grz-jail has two modes:
+
+   - In "model mode", grz-jail generates a file which contains string
+     representations of the syscalls the child process has made during
+     execution. 
+
+   - In "accused mode" (-a), grz-jail reads the list of syscalls'
+     representations from a file and only allows the child process to
+     execute those syscalls whose exact representation is found on the
+     list.
+
+   The representation of syscalls as strings is, therefore,
+   crucial. Since some syscalls have arguments that are adresses and
+   depend explicitly on the location of the process in memory, they
+   usually do not appear in the string representation. However,
+   filenames do appear, since they are sensitive to be allowed or
+   denied specifically. For example, an 'open' system call has a path
+   as a first argument, and the string representation is:
+
+       open("/tmp/data")
+   
+   Since the path is embedded in the string representation, if this
+   string is in the list of permitted syscalls, only 'open' calls that
+   have exactly the same path will succeed in "accused mode".
+
+   Acknowledgements
+   ----------------
+
+   The code below is heavily inspired by the box.c in the MO-Eval
+   distribution, by Martin Mares (http://mj.ucw.cz/mo-eval/).
+
+*/
+
+
 #define _LARGEFILE64_SOURCE
 #include <errno.h>
 #include <fcntl.h>
@@ -19,7 +68,7 @@
 #include <sys/user.h>
 #include <sys/wait.h>
 
-int is_accused = 0;
+int accused_mode = 0;
 int max_cpu_seconds = 2;
 int max_memory = 64 * 1024 * 1024;
 int max_file_size = 1024; // 1 Kbyte (for stderr)
@@ -486,7 +535,7 @@ int main(int argc, char *argv[]) {
       case 't': max_cpu_seconds = atoi(optarg); break;
       case 'm': max_memory = atoi(optarg) * 1024 * 1024; break;
       case 'f': max_file_size = atoi(optarg) * 1024 * 1024; break;
-      case 'a': is_accused = 1; break;
+      case 'a': accused_mode = 1; break;
       default: usage_message(0);
       }
    }
