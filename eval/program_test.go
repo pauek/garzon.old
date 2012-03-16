@@ -131,3 +131,27 @@ func TestSumAB(t *testing.T) {
 		}
 	}
 }
+
+const Echo = `#include <iostream>
+int main() { int a; std::cin >> a; std::cout << a; }`
+const EchoX = `#include <iostream>
+int main() { int a; std::cin >> a; std::cout << (a == 3 ? -1 : a); }`
+
+func TestEcho(t *testing.T) {
+	inputs := []string{"0", "1", "2", "3", "4", "5"}
+	Res, err := evalWithInputs(Echo, EchoX, inputs)
+	if err != nil {
+		t.Errorf("Test failed: %s\n", err)
+	}
+	for i, r := range Res {
+		if i == 3 {
+			if r.Veredict != WRONG_ANSWER {
+				t.Errorf("Veredict should be WRONG_ANSWER (test %d)", i)
+			} 
+		} else {
+			if r.Veredict != ACCEPT {
+				t.Errorf("Veredict should be ACCEPT (test %d)", i)
+			}
+		}
+	}
+}
