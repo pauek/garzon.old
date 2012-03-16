@@ -70,7 +70,7 @@ func TestDifferentOutput(t *testing.T) {
 	model   := fmt.Sprintf(PrintX, "A");
 	accused := fmt.Sprintf(PrintX, "B");
 	R, _ := evalWithInputs(model, accused, []string{""})
-	if R[0].Veredict != REJECT {
+	if R[0].Veredict != WRONG_ANSWER {
 		t.Fail()
 	}
 	output, ok := R[0].Reason.(map[string]string)
@@ -106,5 +106,28 @@ func TestAccusedDoesntCompile(t *testing.T) {
 	errmsg := fmt.Sprintf("%s", err)
 	if ! strings.HasPrefix(errmsg, "Error compiling 'accused':") {
 		t.Errorf("Error is not \"Error compiling 'accused'\"")
+	}
+}
+
+const SumAB = `#include <iostream>
+
+int main() {
+   int a, b;
+   std::cin >> a >> b;
+   std::cout << a + b << std::endl;
+}
+`
+
+func TestSumAB(t *testing.T) {
+	inputs := []string{"2 3\n", "4\n5", "1000 2000\n", "500000000 500000000\n"}
+	Res, err := evalWithInputs(SumAB, SumAB, inputs)
+	if err != nil {
+		t.Errorf("Test failed: %s\n", err)
+	}
+	for i, r := range Res {
+		if r.Veredict != ACCEPT {
+			inp := strings.Replace(inputs[i], "\n", `\n`, -1)
+			t.Errorf("Failed test '%s'\n", inp)
+		}
 	}
 }

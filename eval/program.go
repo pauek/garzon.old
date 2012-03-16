@@ -33,17 +33,21 @@ func prefix(s string, length int) string {
 	return strings.Replace(s[:max], "\n", `\n`, -1) + suffix
 }
 
+// Veredicts /////////////////////////////////////////////////////////
+
+const (
+	ACCEPT = 0
+   COMPILATION_ERROR = 1
+   EXECUTION_ERROR = 2
+   WRONG_ANSWER = 3
+)
+
 // Tests /////////////////////////////////////////////////////////////
 
 type Result struct {
 	Veredict int
 	Reason   interface{}
 }
-
-const (
-	ACCEPT = 0
-   REJECT = 1
-)
 
 type ProgramTester interface {
 	SetUp(ProgramEvaluation) error
@@ -83,9 +87,9 @@ func (I *InputTester) Run(E ProgramEvaluation, cmd *exec.Cmd) error {
 
 func (I *InputTester) Veredict() Result {
 	if I.output["model"] == I.output["accused"] {
-		return Result{Veredict:ACCEPT}
+		return Result{Veredict: ACCEPT}
 	} 
-	return Result{Veredict:REJECT, Reason: I.output}
+	return Result{Veredict: WRONG_ANSWER, Reason: I.output}
 }
 
 // ProgramEvaluation /////////////////////////////////////////////////
@@ -253,6 +257,7 @@ func (E *ProgramEvaluator) EndEvaluation(EvaluationID string, ok *bool) error {
 	if err := os.RemoveAll(P.dir); err != nil {
 		return fmt.Errorf("Couldn't remove directory '%s': %s", P.dir, err)
 	}
+	log.Printf("Removed directory '%s'\n", P.dir)
 	*ok = true
 	return nil
 }
