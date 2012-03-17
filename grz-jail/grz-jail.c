@@ -39,6 +39,13 @@
    string is in the list of permitted syscalls, only 'open' calls that
    have exactly the same path will succeed in "accused mode".
 
+   Exit status
+   -----------
+   0. Execution Ok (time + memory shown on stderr).
+   1. Execution Failed (message in stderr).
+   2. Internal Error.
+   3. Wrong Command Line.
+
    Acknowledgements
    ----------------
 
@@ -91,7 +98,7 @@ void usage_message(char *msg) {
       "   -a         Accused mode\n"
       "\n";
    fprintf(stderr, "%s", _usage);
-   exit(1);
+   exit(3);
 }
 
 #define FORMAT __attribute__((format(printf,2,3)))
@@ -106,8 +113,9 @@ void FORMAT __die(int code, char *msg, ...) {
    exit(code);
 }
 
-#define report(...) __die(0, __VA_ARGS__)
-#define die(...)    __die(2, __VA_ARGS__)
+#define report_success(...) __die(0, __VA_ARGS__)
+#define report_failure(...) __die(1, __VA_ARGS__)
+#define die(...)            __die(2, __VA_ARGS__)
 #define die_if(cond, ...) if (cond) __die(2, __VA_ARGS__)
 
 #define SYS(x) __NR_##x
@@ -387,20 +395,20 @@ inline int final_time() {
 void accused_exited(int stat) {
    accused_pid = 0;
    if (!passed_exec) {
-      report("Internal Error\n");
+      die("Internal Error\n");
    }
    int code = WEXITSTATUS(stat);
    if (code != 0) {
-      report("Error [%d]\n", code);
+      report_failure("Error [%d]\n", code);
    }
-   report("Ok [%.3f sec, %.3f MB]\n", 
-          final_time() / 1000.0, 
-          accused_mem_peak_kb / 1024.0);
+   report_success("Ok [%.3f sec, %.3f MB]\n", 
+                  final_time() / 1000.0, 
+                  accused_mem_peak_kb / 1024.0);
 }
 
 void accused_signaled(int stat) {
    accused_pid = 0;
-   report("Signalled [%d]\n", WTERMSIG(stat));
+   report_failure("Signalled [%d]\n", WTERMSIG(stat));
 }
 
 int curr_sys = -1;
@@ -413,11 +421,11 @@ const char *get_syscall_filename_arg(uint64_t addr) {
          int remains = PAGE_SIZE - (addr & (PAGE_SIZE-1));
          int l = namebuf + sizeof(namebuf) - end;
          if (l > remains) l = remains;
-         if (!l) report("FA: Access to file with name too long\n");
+         if (!l) report_failure("FA: Access to file with name too long\n");
          remains = read_user_mem(accused_pid, addr, end, l);
          die_if(remains < 0, "read(mem): %s\n", strerror(errno));
          if (!remains) {
-            report("FA: Access to file with name out of memory\n");
+            report_failure("FA: Access to file with name out of memory\n");
          }
          end += remains;
          addr += remains;
@@ -493,7 +501,7 @@ void accused_before_syscall() {
 
    if (accused_mode) {
       if (!syscall_list_find(repr)) {
-         report("Forbidden Syscall [%s]\n", repr);
+         report_failure("Forbidden Syscall [%s]\n", repr);
       }
    } else {
       if (!syscall_list_find(repr)) {
@@ -513,7 +521,7 @@ void accused_after_syscall() {
       // Check return value? Why?
    } else {
       if (args.sys != curr_sys) {
-         report("Mismatched syscall before/after\n");
+         report_failure("Mismatched syscall before/after\n");
       }
    }
    curr_sys = -1;
@@ -537,15 +545,15 @@ void accused_stopped(int stat) {
       }
    } else {
       switch (sig) {
-      case SIGABRT: report("Aborted\n");
-      case SIGINT:  report("Interrupted\n");
-      case SIGILL:  report("Illegal Instruction\n");
-      case SIGSEGV: report("Segmentation Fault\n");
-      case SIGXCPU: report("Time-Limit Exceeded\n");
-      case SIGXFSZ: report("File-Size Exceeded\n");
+      case SIGABRT: report_failure("Aborted\n");
+      case SIGINT:  report_failure("Interrupted\n");
+      case SIGILL:  report_failure("Illegal Instruction\n");
+      case SIGSEGV: report_failure("Segmentation Fault\n");
+      case SIGXCPU: report_failure("Time-Limit Exceeded\n");
+      case SIGXFSZ: report_failure("File-Size Exceeded\n");
       case SIGTRAP: 
          if (++stop_count > 1) {
-            report("Breakpoint\n");
+            report_failure("Breakpoint\n");
          }
       }
    }
