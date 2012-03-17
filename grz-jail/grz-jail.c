@@ -523,6 +523,13 @@ void accused_after_syscall() {
       if (args.sys != curr_sys) {
          report_failure("Mismatched syscall before/after\n");
       }
+      int s = args.sys;
+      if (s == SYS(brk) || s == SYS(mmap) || s == SYS(mremap)) {
+         // Hack: parece que result es -ENOMEM, pero esto es solo empírico...
+         if ((int)args.result == -ENOMEM) { 
+            report_failure("Memory Limit Exceeded\n");
+         }
+      }
    }
    curr_sys = -1;
 }
@@ -549,8 +556,8 @@ void accused_stopped(int stat) {
       case SIGINT:  report_failure("Interrupted\n");
       case SIGILL:  report_failure("Illegal Instruction\n");
       case SIGSEGV: report_failure("Segmentation Fault\n");
-      case SIGXCPU: report_failure("Time-Limit Exceeded\n");
-      case SIGXFSZ: report_failure("File-Size Exceeded\n");
+      case SIGXCPU: report_failure("Time Limit Exceeded\n");
+      case SIGXFSZ: report_failure("File Size Exceeded\n");
       case SIGTRAP: 
          if (++stop_count > 1) {
             report_failure("Breakpoint\n");
@@ -647,5 +654,5 @@ int main(int argc, char *argv[]) {
 }
 
 /* Local variables: */
-/* compile-command: "gcc -Wall -static -o grz-jail grz-jail.c" */
+/* compile-command: "gcc -Wall -static -o $HOME/bin/grz-jail grz-jail.c" */
 /* End: */

@@ -29,6 +29,8 @@ func mkEvaluation(model, accused string) ProgramEvaluation {
 	return *ev
 }
 
+var keepDir bool
+
 func evalWithInputs(model, accused string, I []string) (R []Result, err error) {
 	var id string
 	var ok bool
@@ -46,8 +48,10 @@ func evalWithInputs(model, accused string, I []string) (R []Result, err error) {
 		}
 	}
 
-	if err = Evaluator.EndEvaluation(id, &ok); err != nil {
-		return nil, err
+	if ! keepDir {
+		if err = Evaluator.EndEvaluation(id, &ok); err != nil {
+			return nil, err
+		}
 	}
 
 	return R, nil
@@ -146,8 +150,8 @@ func TestEcho(t *testing.T) {
 	}
 }
 
-func testExecutionError(t *testing.T, program string, expected string) {
-	R, err := evalWithInputs(Minimal, program, OneEmptyInput)
+func testExecutionError(t *testing.T, model, accused string, expected string) {
+	R, err := evalWithInputs(model, accused, OneEmptyInput)
 	if err != nil {
 		t.Errorf("Evaluation should not return error")
 	}
@@ -158,18 +162,24 @@ func testExecutionError(t *testing.T, program string, expected string) {
 
 func TestTimeLimitExceeded(t *testing.T) {
 	infLoop := `int main() { while (1); }`
-	testExecutionError(t, infLoop, "Time-Limit Exceeded")
+	testExecutionError(t, Minimal, infLoop, "Time Limit Exceeded")
 }
 
 func TestSegmentationFault(t *testing.T) {
 	segFault := `int main() { int T[1]; T[100000000] = 1; }`
-	testExecutionError(t, segFault, "Segmentation Fault")
+	testExecutionError(t, Minimal, segFault, "Segmentation Fault")
+}
+
+func TestAborted(t *testing.T) {
+	normal := "#include <vector>\nint main() { std::vector<int> v(1000000); }"
+	abort  := "#include <vector>\nint main() { std::vector<int> v(100000000); }"
+	testExecutionError(t, normal, abort, "Memory Limit Exceeded")
 }
 
 // TODO: Aborted
 // TODO: Interrupted
 // TODO: Out of Memory
-// TODO: Open File
+// TODO: Forbidden Syscall (open)
 // TODO: Forbidden Syscall (execve)
 // TODO: Forbidden Syscall (fork)
 // TODO: Forbidden Syscall (unlink)
