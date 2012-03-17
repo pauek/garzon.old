@@ -170,10 +170,36 @@ func TestSegmentationFault(t *testing.T) {
 	testExecutionError(t, Minimal, segFault, "Segmentation Fault")
 }
 
-func TestAborted(t *testing.T) {
+func TestMemoryLimit1(t *testing.T) {
 	normal := "#include <vector>\nint main() { std::vector<int> v(1000000); }"
 	abort  := "#include <vector>\nint main() { std::vector<int> v(100000000); }"
 	testExecutionError(t, normal, abort, "Memory Limit Exceeded")
+}
+
+func TestMemoryLimit2(t *testing.T) {
+	normal := `
+#include <stdlib.h>
+
+int main() {
+   int i;
+   void *data[64];
+   for (i = 0; i < 64; i++) {
+      data[i] = malloc(1024 * 1024); // 1 MB
+	}
+}
+`
+	wrong := `
+#include <stdlib.h>
+
+int main() {
+   int i;
+   void *data[8192]; // ~8Gb
+   for (i = 0; i < 8192; i++) {
+      data[i] = malloc(1024 * 1024); // 1 MB
+	}
+}
+`
+	testExecutionError(t, normal, wrong, "Memory Limit Exceeded")   
 }
 
 // TODO: Aborted
