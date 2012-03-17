@@ -54,9 +54,10 @@ func evalWithInputs(model, accused string, I []string) (R []Result, err error) {
 }
 
 const Minimal = `int main() {}`
+var OneEmptyInput = []string{""}
 
 func TestMinimal(t *testing.T) {
-	R, _ := evalWithInputs(Minimal, Minimal, []string{""})
+	R, _ := evalWithInputs(Minimal, Minimal, OneEmptyInput)
 	if R[0].Veredict != "Accept" {
 		t.Fail()
 	}
@@ -68,7 +69,7 @@ int main() { std::cout << "%s" << std::endl; }`
 func TestDifferentOutput(t *testing.T) {
 	model   := fmt.Sprintf(PrintX, "A");
 	accused := fmt.Sprintf(PrintX, "B");
-	R, _ := evalWithInputs(model, accused, []string{""})
+	R, _ := evalWithInputs(model, accused, OneEmptyInput)
 	if R[0].Veredict != "Wrong Answer" {
 		t.Fail()
 	}
@@ -77,7 +78,7 @@ func TestDifferentOutput(t *testing.T) {
 const Wrong = `int main{}`
 
 func TestModelDoesntCompile(t *testing.T) {
-	_, err := evalWithInputs(Wrong, Minimal, []string{""})
+	_, err := evalWithInputs(Wrong, Minimal, OneEmptyInput)
 	if err == nil {
 		t.Errorf("Compilation should fail")
 	}
@@ -88,7 +89,7 @@ func TestModelDoesntCompile(t *testing.T) {
 }
 
 func TestAccusedDoesntCompile(t *testing.T) {
-	_, err := evalWithInputs(Minimal, Wrong, []string{""})
+	_, err := evalWithInputs(Minimal, Wrong, OneEmptyInput)
 	if err == nil {
 		t.Errorf("Compilation should fail")
 	}
@@ -145,21 +146,26 @@ func TestEcho(t *testing.T) {
 	}
 }
 
-const InfLoop = `int main() { while (1); }`
-
-func TestTimeLimitExceeded(t *testing.T) {
-	inputs := []string{""}
-	R, err := evalWithInputs(Minimal, InfLoop, inputs)
+func testExecutionError(t *testing.T, program string, expected string) {
+	R, err := evalWithInputs(Minimal, program, OneEmptyInput)
 	if err != nil {
 		t.Errorf("Evaluation should not return error")
 	}
-	if R[0].Veredict != "Time-Limit Exceeded" {
-		t.Errorf("Veredict should be \"Time-Limit Exceeded\"")
+	if R[0].Veredict != expected {
+		t.Errorf("Veredict should be \"%s\" (is \"%s\")", expected, R[0].Veredict)
 	}
 }
 
-// TODO: Time-Limit Exceeded (infinite loop)
-// TODO: Segmentation Fault
+func TestTimeLimitExceeded(t *testing.T) {
+	infLoop := `int main() { while (1); }`
+	testExecutionError(t, infLoop, "Time-Limit Exceeded")
+}
+
+func TestSegmentationFault(t *testing.T) {
+	segFault := `int main() { int T[1]; T[100000000] = 1; }`
+	testExecutionError(t, segFault, "Segmentation Fault")
+}
+
 // TODO: Aborted
 // TODO: Interrupted
 // TODO: Out of Memory
