@@ -4,6 +4,7 @@ package eval
 import (
 	"os"
 	"os/exec"
+	"syscall"
 	"io"
 	"io/ioutil"
 	"fmt"
@@ -33,63 +34,49 @@ func prefix(s string, length int) string {
 	return strings.Replace(s[:max], "\n", `\n`, -1) + suffix
 }
 
-// Veredicts /////////////////////////////////////////////////////////
-
-const (
-	ACCEPT = 0
-   COMPILATION_ERROR = 1
-   EXECUTION_ERROR = 2
-   WRONG_ANSWER = 3
-)
-
 // Tests /////////////////////////////////////////////////////////////
 
 type Result struct {
-	Veredict int
+	Veredict string
 	Reason   interface{}
 }
 
 type ProgramTester interface {
-	SetUp(ProgramEvaluation) error
+	SetUp(ProgramEvaluation, *exec.Cmd) error
 	CleanUp(ProgramEvaluation) error
-	Run(ProgramEvaluation, *exec.Cmd) error
 	Veredict() Result
 }
 
 type InputTester struct {
 	Input string
-	output map[string]string
+
+	modelOut, accusedOut bytes.Buffer
 }
 
-func (I *InputTester) SetUp(E ProgramEvaluation) error {
+func (I *InputTester) SetUp(E ProgramEvaluation, cmd *exec.Cmd) error {
+	log.Printf("Testing input '%s'\n", prefix(I.Input, 20))
+	cmd.Stdin  = strings.NewReader(I.Input)
+	switch (E.Mode()) {
+	case "model":
+		cmd.Stdout = &I.modelOut
+	case "accused":
+		cmd.Stdout = &I.accusedOut
+	default:
+		return fmt.Errorf("Unknown mode '%s'\n", E.Mode())
+	}
 	return nil
 }
 
 func (I *InputTester) CleanUp(E ProgramEvaluation) error {
-	return nil
-}
-
-func (I *InputTester) Run(E ProgramEvaluation, cmd *exec.Cmd) error {
-	if (E.Mode() == "model") {
-		I.output = make(map[string]string)
-	}
-	var output, status bytes.Buffer
-	cmd.Stdin  = strings.NewReader(I.Input)
-	cmd.Stdout = &output
-	cmd.Stderr = &status
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s", status.String())
-		return fmt.Errorf("Couldn't execute '%s': %s", E.Mode(), err)
-	} 
-	I.output[E.Mode()] = output.String()
+	
 	return nil
 }
 
 func (I *InputTester) Veredict() Result {
-	if I.output["model"] == I.output["accused"] {
-		return Result{Veredict: ACCEPT}
+	if I.modelOut.String() == I.accusedOut.String() {
+		return Result{Veredict: "Accept"}
 	} 
-	return Result{Veredict: WRONG_ANSWER, Reason: I.output}
+	return Result{Veredict: "Wrong Answer"}
 }
 
 // ProgramEvaluation /////////////////////////////////////////////////
@@ -132,7 +119,7 @@ func (E *ProgramEvaluation) SwitchTo(whom string) error {
 	return nil
 }
 
-func (E *ProgramEvaluation) RunCommand() (cmd *exec.Cmd) {
+func (E *ProgramEvaluation) MakeCommand() (cmd *exec.Cmd) {
 	args := []string{}
 	addOption := func (flag string, val int) {
 		if val > 0 {
@@ -227,24 +214,52 @@ type TestInfo struct {
 	Test ProgramTester
 }
 
-func (E *ProgramEvaluator) RunTest(T TestInfo, Veredict *Result) error {
+func getExitStatus(err error) int {
+	exiterror, ok := err.(*exec.ExitError)
+	if ! ok { 
+		log.Fatalf("Cannot get ProcessState") 
+	}
+	status, ok := exiterror.Sys().(syscall.WaitStatus)
+	if ! ok { 
+		log.Fatalf("Cannot get syscall.WaitStatus") 
+	}
+	return status.ExitStatus()
+}
+
+func (E *ProgramEvaluator) RunTest(T TestInfo, R *Result) (err error) {
 	P, ok := evaluations[T.EvaluationID]
 	if ! ok {
 		return fmt.Errorf("Evaluation ID '%s' not found", T.EvaluationID)
 	}
-	if err := P.SwitchTo("model");   err != nil { return err }
-	if err := T.Test.SetUp(P);       err != nil { return err }
-	cmd := P.RunCommand()
-	log.Printf("Executing 'model'")
-	if err := T.Test.Run(P, cmd);    err != nil { return err }
-	if err := T.Test.CleanUp(P);     err != nil { return err }
-	if err := P.SwitchTo("accused"); err != nil { return err }
-	if err := T.Test.SetUp(P);       err != nil { return err }
-	cmd  = P.RunCommand()
-	log.Printf("Executing 'accused'")
-	if err := T.Test.Run(P, cmd);    err != nil { return err }
-	if err := T.Test.CleanUp(P);     err != nil { return err }
-	*Veredict = T.Test.Veredict()
+	
+	runtest := func (whom string) bool {
+		if err = P.SwitchTo(whom); err != nil { 
+			return false 
+		}
+		cmd := P.MakeCommand()
+		if err = T.Test.SetUp(P, cmd); err != nil { 
+			return false 
+		}
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		log.Printf("Executing '%s'", whom)
+		if err = cmd.Run(); err != nil {
+			code := getExitStatus(err)
+			if code == 1 { // Execution Failed
+				err = nil
+				R.Veredict = strings.Replace(stderr.String(), "\n", "", -1)
+			}
+			return false
+		}
+		if err = T.Test.CleanUp(P); err != nil { 
+			return false 
+		}
+		return true
+	}
+	if ! runtest("model")   { return }
+	if ! runtest("accused") { return }
+
+	*R = T.Test.Veredict()
 	return nil
 }
 

@@ -40,10 +40,9 @@ func evalWithInputs(model, accused string, I []string) (R []Result, err error) {
 
 	R = make([]Result, len(I))
 	for i, input := range I {
-		T := TestInfo{ id, &InputTester{ input, nil } }
+		T := TestInfo{ id, &InputTester{ Input: input } }
 		if err = Evaluator.RunTest(T, &R[i]); err != nil {
-			Evaluator.EndEvaluation(id, &ok)
-			return nil, err
+			R[i].Veredict = fmt.Sprintf("%s", err)
 		}
 	}
 
@@ -58,7 +57,7 @@ const Minimal = `int main() {}`
 
 func TestMinimal(t *testing.T) {
 	R, _ := evalWithInputs(Minimal, Minimal, []string{""})
-	if R[0].Veredict != ACCEPT {
+	if R[0].Veredict != "Accept" {
 		t.Fail()
 	}
 }
@@ -70,18 +69,8 @@ func TestDifferentOutput(t *testing.T) {
 	model   := fmt.Sprintf(PrintX, "A");
 	accused := fmt.Sprintf(PrintX, "B");
 	R, _ := evalWithInputs(model, accused, []string{""})
-	if R[0].Veredict != WRONG_ANSWER {
+	if R[0].Veredict != "Wrong Answer" {
 		t.Fail()
-	}
-	output, ok := R[0].Reason.(map[string]string)
-	if ! ok {
-		t.Fail()
-	}
-	if output["model"] != "A\n" {
-		t.Errorf("Model output incorrect")
-	}
-	if output["accused"] != "B\n" {
-		t.Errorf("Accused output incorrect")
 	}
 }
 
@@ -125,7 +114,7 @@ func TestSumAB(t *testing.T) {
 		t.Errorf("Test failed: %s\n", err)
 	}
 	for i, r := range Res {
-		if r.Veredict != ACCEPT {
+		if r.Veredict != "Accept" {
 			inp := strings.Replace(inputs[i], "\n", `\n`, -1)
 			t.Errorf("Failed test '%s'\n", inp)
 		}
@@ -145,13 +134,39 @@ func TestEcho(t *testing.T) {
 	}
 	for i, r := range Res {
 		if i == 3 {
-			if r.Veredict != WRONG_ANSWER {
-				t.Errorf("Veredict should be WRONG_ANSWER (test %d)", i)
+			if r.Veredict != "Wrong Answer" {
+				t.Errorf("Veredict should be \"Wrong Answer\" (test %d)", i)
 			} 
 		} else {
-			if r.Veredict != ACCEPT {
-				t.Errorf("Veredict should be ACCEPT (test %d)", i)
+			if r.Veredict != "Accept" {
+				t.Errorf("Veredict should be \"Accept\" (test %d)", i)
 			}
 		}
 	}
 }
+
+const InfLoop = `int main() { while (1); }`
+
+func TestTimeLimitExceeded(t *testing.T) {
+	inputs := []string{""}
+	R, err := evalWithInputs(Minimal, InfLoop, inputs)
+	if err != nil {
+		t.Errorf("Evaluation should not return error")
+	}
+	if R[0].Veredict != "Time-Limit Exceeded" {
+		t.Errorf("Veredict should be \"Time-Limit Exceeded\"")
+	}
+}
+
+// TODO: Time-Limit Exceeded (infinite loop)
+// TODO: Segmentation Fault
+// TODO: Aborted
+// TODO: Interrupted
+// TODO: Out of Memory
+// TODO: Open File
+// TODO: Forbidden Syscall (execve)
+// TODO: Forbidden Syscall (fork)
+// TODO: Forbidden Syscall (unlink)
+// TODO: Forbidden Syscall (kill)
+
+
