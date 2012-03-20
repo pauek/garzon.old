@@ -1,5 +1,5 @@
 
-package eval
+package program
 
 import (
 	"os"
@@ -22,8 +22,8 @@ func init() {
 	Evaluator.BaseDir = dir
 }
 
-func mkEvaluation(model, accused string) ProgramEvaluation {
-	ev := new(ProgramEvaluation)
+func mkEvaluation(model, accused string) Evaluation {
+	ev := new(Evaluation)
 	ev.Model   = Program{Lang: "c++", Code: model}
 	ev.Accused = Program{Lang: "c++", Code: accused}
 	return *ev
