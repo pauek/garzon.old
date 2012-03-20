@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"regexp"
 	"testing"
 )	
 
@@ -156,9 +157,14 @@ func testExecutionError(t *testing.T, model, accused string, expected string) {
 		t.Errorf("Evaluation should be ok (error: '%s')", err)
 		return
 	}
-	if R[0].Veredict != expected {
-		t.Errorf("Veredict should be \"%s\" (is \"%s\")", expected, R[0].Veredict)
+	found, err := regexp.MatchString(expected, R[0].Veredict)
+	if err != nil {
+		t.Errorf(`Error matching regexp "%s" against "%s"`, expected, R[0].Veredict)
 	}
+	if ! found {
+		t.Errorf(`Wrong veredict "%s" vs. "%s"`, expected, R[0].Veredict)
+	}
+
 }
 
 func TestTimeLimitExceeded(t *testing.T) {
@@ -209,10 +215,19 @@ int main() {
 func TestForbiddenSyscall1(t *testing.T) {
 	opener := `#include <fstream>
    int main() { std::ofstream F("file"); F << '\n'; }`
-	testExecutionError(t, Minimal, opener, "Forbidden Syscall [open(\"file\")]")
+	testExecutionError(t, Minimal, opener, `Forbidden Syscall \[open\("file"\)\]`)
 }
 
-// TODO: Forbidden Syscall (execve)
+func TestForbiddenSyscall(t *testing.T) {
+	execer := `#include <unistd.h>
+   int main() { 
+      char *argv[] = { NULL }, *envp[] = { NULL };
+      execve("/bin/ls", argv, envp); 
+   }`
+	testExecutionError(t, Minimal, execer, 
+		`Forbidden Syscall \[_execve\([0-9a-f]*,[0-9a-f]*,[0-9a-f]*\)\]`)
+}
+
 // TODO: Forbidden Syscall (fork)
 // TODO: Forbidden Syscall (unlink)
 // TODO: Forbidden Syscall (kill)
