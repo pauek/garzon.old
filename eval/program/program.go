@@ -41,7 +41,7 @@ type Result struct {
 	Reason   interface{}
 }
 
-type ProgramTester interface {
+type Tester interface {
 	SetUp(*Context, *exec.Cmd) error
 	CleanUp(*Context) error
 	Veredict() Result
@@ -80,7 +80,7 @@ func (I *InputTester) Veredict() Result {
 
 // Context /////////////////////////////////////////////////
 
-type Program struct {
+type Text struct {
 	Lang, Code string
 }
 
@@ -89,7 +89,7 @@ type Constraints struct {
 }
 
 type Evaluation struct {
-	Accused, Model Program
+	Accused, Model Text
 	Limits Constraints
 }
 	
@@ -193,22 +193,22 @@ func (C *Context) Destroy() error {
 	return nil
 }
 
-// ProgramEvaluator //////////////////////////////////////////////////
+// programEvaluator //////////////////////////////////////////////////
 
-var Evaluator *ProgramEvaluator
+var Evaluator *programEvaluator
 
-type ProgramEvaluator struct {
+type programEvaluator struct {
 	BaseDir string
 	Contexts map[string]*Context
 }
 
 func init() {
-	Evaluator = new(ProgramEvaluator)
+	Evaluator = new(programEvaluator)
 	Evaluator.BaseDir  = os.Getenv("HOME")
 	Evaluator.Contexts = make(map[string]*Context)
 }
 
-func (E *ProgramEvaluator) StartEvaluation(ev Evaluation, ID *string) error {
+func (E *programEvaluator) StartEvaluation(ev Evaluation, ID *string) error {
 	id  := _sha1(ev.Accused.Code)
 	C := NewContext(E.BaseDir + "/" + id, &ev)
 	if err := C.CreateDirectory(); err != nil { 
@@ -227,7 +227,7 @@ func (E *ProgramEvaluator) StartEvaluation(ev Evaluation, ID *string) error {
 
 type TestInfo struct {
 	EvalID string
-	Test ProgramTester
+	Test Tester
 }
 
 func getExitStatus(err error) int {
@@ -242,7 +242,7 @@ func getExitStatus(err error) int {
 	return status.ExitStatus()
 }
 
-func (E *ProgramEvaluator) RunTest(T TestInfo, R *Result) (err error) {
+func (E *programEvaluator) RunTest(T TestInfo, R *Result) (err error) {
 	C, ok := E.Contexts[T.EvalID]
 	if ! ok {
 		return fmt.Errorf("Evaluation ID '%s' not found", T.EvalID)
@@ -279,7 +279,7 @@ func (E *ProgramEvaluator) RunTest(T TestInfo, R *Result) (err error) {
 	return nil
 }
 
-func (E *ProgramEvaluator) EndEvaluation(EvalID string, ok *bool) error {
+func (E *programEvaluator) EndEvaluation(EvalID string, ok *bool) error {
 	*ok = false
 	C, found := E.Contexts[EvalID]
 	if ! found {
