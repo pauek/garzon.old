@@ -228,8 +228,8 @@ func TestForbiddenSyscall(t *testing.T) {
 		`Forbidden Syscall \[_execve\([0-9a-f]*,[0-9a-f]*,[0-9a-f]*\)\]`)
 }
 
-// TODO: Forbidden Syscall (fork)
-// TODO: Forbidden Syscall (unlink)
-// TODO: Forbidden Syscall (kill)
+// TODO: Forbidden Syscall (fork) ?
+// TODO: Forbidden Syscall (unlink) ?
+// TODO: Forbidden Syscall (kill) ?
 
 
