@@ -153,7 +153,8 @@ func TestEcho(t *testing.T) {
 func testExecutionError(t *testing.T, model, accused string, expected string) {
 	R, err := evalWithInputs(model, accused, OneEmptyInput)
 	if err != nil {
-		t.Errorf("Evaluation should not return error")
+		t.Errorf("Evaluation should be ok (error: '%s')", err)
+		return
 	}
 	if R[0].Veredict != expected {
 		t.Errorf("Veredict should be \"%s\" (is \"%s\")", expected, R[0].Veredict)
@@ -204,8 +205,13 @@ int main() {
 
 // TODO: Aborted
 // TODO: Interrupted
-// TODO: Out of Memory
-// TODO: Forbidden Syscall (open)
+
+func TestForbiddenSyscall1(t *testing.T) {
+	opener := `#include <fstream>
+   int main() { std::ofstream F("file"); F << '\n'; }`
+	testExecutionError(t, Minimal, opener, "Forbidden Syscall [open(\"file\")]")
+}
+
 // TODO: Forbidden Syscall (execve)
 // TODO: Forbidden Syscall (fork)
 // TODO: Forbidden Syscall (unlink)
