@@ -226,7 +226,7 @@ func (E *ProgramEvaluator) StartEvaluation(ev Evaluation, ID *string) error {
 }
 
 type TestInfo struct {
-	EvaluationID string
+	EvalID string
 	Test ProgramTester
 }
 
@@ -243,9 +243,9 @@ func getExitStatus(err error) int {
 }
 
 func (E *ProgramEvaluator) RunTest(T TestInfo, R *Result) (err error) {
-	C, ok := E.Contexts[T.EvaluationID]
+	C, ok := E.Contexts[T.EvalID]
 	if ! ok {
-		return fmt.Errorf("Evaluation ID '%s' not found", T.EvaluationID)
+		return fmt.Errorf("Evaluation ID '%s' not found", T.EvalID)
 	}
 	
 	runtest := func (whom string) bool {
@@ -279,11 +279,11 @@ func (E *ProgramEvaluator) RunTest(T TestInfo, R *Result) (err error) {
 	return nil
 }
 
-func (E *ProgramEvaluator) EndEvaluation(EvaluationID string, ok *bool) error {
+func (E *ProgramEvaluator) EndEvaluation(EvalID string, ok *bool) error {
 	*ok = false
-	C, found := E.Contexts[EvaluationID]
+	C, found := E.Contexts[EvalID]
 	if ! found {
-		return fmt.Errorf("Evaluation ID '%s' not found", EvaluationID)
+		return fmt.Errorf("Evaluation ID '%s' not found", EvalID)
 	}
 	if err := C.Destroy(); err != nil {
 		return err
