@@ -9,11 +9,11 @@ import (
 	"net/rpc"
 	"net/http"
 	
-	"garzon/eval"
+	"garzon/eval/program"
 )
 
 func init() {
-	rpc.Register(eval.ProgramEvaluator)
+	rpc.Register(program.Evaluator)
 }
 
 func main() {
