@@ -193,22 +193,22 @@ func (C *Context) Destroy() error {
 	return nil
 }
 
-// programEvaluator //////////////////////////////////////////////////
+// ProgramEvaluator //////////////////////////////////////////////////
 
-var Evaluator *programEvaluator
+var Evaluator *ProgramEvaluator
 
-type programEvaluator struct {
+type ProgramEvaluator struct {
 	BaseDir string
 	Contexts map[string]*Context
 }
 
 func init() {
-	Evaluator = new(programEvaluator)
+	Evaluator = new(ProgramEvaluator)
 	Evaluator.BaseDir  = os.Getenv("HOME")
 	Evaluator.Contexts = make(map[string]*Context)
 }
 
-func (E *programEvaluator) StartEvaluation(ev Evaluation, ID *string) error {
+func (E *ProgramEvaluator) StartEvaluation(ev Evaluation, ID *string) error {
 	id  := _sha1(ev.Accused.Code)
 	C := NewContext(E.BaseDir + "/" + id, &ev)
 	if err := C.CreateDirectory(); err != nil { 
@@ -242,7 +242,7 @@ func getExitStatus(err error) int {
 	return status.ExitStatus()
 }
 
-func (E *programEvaluator) RunTest(T TestInfo, R *Result) (err error) {
+func (E *ProgramEvaluator) RunTest(T TestInfo, R *Result) (err error) {
 	C, ok := E.Contexts[T.EvalID]
 	if ! ok {
 		return fmt.Errorf("Evaluation ID '%s' not found", T.EvalID)
@@ -279,7 +279,7 @@ func (E *programEvaluator) RunTest(T TestInfo, R *Result) (err error) {
 	return nil
 }
 
-func (E *programEvaluator) EndEvaluation(EvalID string, ok *bool) error {
+func (E *ProgramEvaluator) EndEvaluation(EvalID string, ok *bool) error {
 	*ok = false
 	C, found := E.Contexts[EvalID]
 	if ! found {
