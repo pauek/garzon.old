@@ -12,7 +12,8 @@ import (
 	"log"
 	"strings"
 	"bytes"
-	
+
+	"garzon/eval"
 	"garzon/eval/program/lang"
 )
 
@@ -36,15 +37,10 @@ func prefix(s string, length int) string {
 
 // Tests /////////////////////////////////////////////////////////////
 
-type Result struct {
-	Veredict string
-	Reason   interface{}
-}
-
 type Tester interface {
+	eval.Tester
 	SetUp(*Context, *exec.Cmd) error
 	CleanUp(*Context) error
-	Veredict() Result
 }
 
 type InputTester struct {
@@ -71,11 +67,11 @@ func (I *InputTester) CleanUp(*Context) error {
 	return nil
 }
 
-func (I *InputTester) Veredict() Result {
+func (I *InputTester) Veredict() eval.Result {
 	if I.modelOut.String() == I.accusedOut.String() {
-		return Result{Veredict: "Accept"}
+		return eval.Result{Veredict: "Accept"}
 	} 
-	return Result{Veredict: "Wrong Answer"}
+	return eval.Result{Veredict: "Wrong Answer"}
 }
 
 // Context /////////////////////////////////////////////////
@@ -242,7 +238,7 @@ func getExitStatus(err error) int {
 	return status.ExitStatus()
 }
 
-func (E *ProgramEvaluator) RunTest(T TestInfo, R *Result) (err error) {
+func (E *ProgramEvaluator) RunTest(T TestInfo, R *eval.Result) (err error) {
 	C, ok := E.Contexts[T.EvalID]
 	if ! ok {
 		return fmt.Errorf("Evaluation ID '%s' not found", T.EvalID)

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"regexp"
 	"testing"
+	
+	"garzon/eval"
 )	
 
 var ID string
@@ -32,7 +34,7 @@ func mkEvaluation(model, accused string) Evaluation {
 
 var keepDir bool
 
-func evalWithInputs(model, accused string, I []string) (R []Result, err error) {
+func evalWithInputs(model, accused string, I []string) (R []eval.Result, err error) {
 	var id string
 	var ok bool
 
@@ -41,7 +43,7 @@ func evalWithInputs(model, accused string, I []string) (R []Result, err error) {
 		return nil, err
 	}
 
-	R = make([]Result, len(I))
+	R = make([]eval.Result, len(I))
 	for i, input := range I {
 		T := TestInfo{ id, &InputTester{ Input: input } }
 		if err = Evaluator.RunTest(T, &R[i]); err != nil {
