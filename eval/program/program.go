@@ -43,10 +43,31 @@ type Tester interface {
 	CleanUp(*Context) error
 }
 
+// InputTester ///////////////////////////////////////////////////////
+
 type InputTester struct {
 	Input string
-
 	modelOut, accusedOut bytes.Buffer
+}
+
+func init() {
+	var t InputTester
+	eval.RegisterTester(&t)
+}
+
+func (I *InputTester) ToMap() map[string]interface{} {
+	return map[string]interface{} { "input": I.Input }
+}
+
+func (I *InputTester) FromMap(M map[string]interface{}) {
+	I.Input = M["input"].(string)
+}
+
+func (I *InputTester) Veredict() eval.Result {
+	if I.modelOut.String() == I.accusedOut.String() {
+		return eval.Result{Veredict: "Accept"}
+	} 
+	return eval.Result{Veredict: "Wrong Answer"}
 }
 
 func (I *InputTester) SetUp(C *Context, cmd *exec.Cmd) error {
@@ -65,13 +86,6 @@ func (I *InputTester) SetUp(C *Context, cmd *exec.Cmd) error {
 
 func (I *InputTester) CleanUp(*Context) error {
 	return nil
-}
-
-func (I *InputTester) Veredict() eval.Result {
-	if I.modelOut.String() == I.accusedOut.String() {
-		return eval.Result{Veredict: "Accept"}
-	} 
-	return eval.Result{Veredict: "Wrong Answer"}
 }
 
 // Context /////////////////////////////////////////////////
