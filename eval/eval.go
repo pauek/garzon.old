@@ -2,49 +2,40 @@
 package eval
 
 import (
-	"fmt"
-	"reflect"
-	"encoding/json"
 	"log"
+	"reflect"
 )	
 
 // Problems //////////////////////////////////////////////////////////
 
 type Problem struct {
-	ID, Title, Solution string
+	Id, Title, Solution string
 	Tests []Tester
 }
 
-func (P *Problem) UnmarshalJSON(data []byte) error {
-	var p interface{}
-	json.Unmarshal(data, &p)
-	m, ok := p.(map[string]interface{})
-	if ! ok {
-		fmt.Errorf("Cannot unmarshal JSON data")
-	}
-	P.ID       = m["_id"].(string)
-	P.Title    = m["Title"].(string)
-	P.Solution = m["Solution"].(string)
+func (P *Problem) FromJSON(M map[string]interface{}) {
+	P.Id       = M["_id"].(string)
+	P.Title    = M["Title"].(string)
+	P.Solution = M["Solution"].(string)
 	
-	tests := m["Tests"].([]interface{})
+	tests := M["Tests"].([]interface{})
 	P.Tests = make([]Tester, len(tests))
 	for i, T := range tests {
 		P.Tests[i] = *TesterFromJSON(T)
 	}
-	return nil
 }
 
-func (P *Problem) MarshalJSON() ([]byte, error) {
-	M := make(map[string]interface{})
-	M["_id"] = P.ID
+func (P *Problem) ToJSON() (M map[string]interface{}) {
+	M = make(map[string]interface{})
+	M["_id"] = P.Id
 	M["Title"] = P.Title
 	M["Solution"] = P.Solution
 	tests := make([]interface{}, len(P.Tests))
 	for i, T := range P.Tests {
-		tests[i] = TesterToJSON(T)
+		tests[i] = TesterToJSON(&T)
 	}
 	M["Tests"] = tests
-	return json.Marshal(M)
+	return
 }
 
 // Testers ///////////////////////////////////////////////////////////
@@ -74,7 +65,7 @@ func typeName(v interface{}) string {
 
 func RegisterTester(t Tester) {
 	name := typeName(t)
-	typeMap[name] = reflect.TypeOf(t)
+	typeMap[name] = reflect.TypeOf(t).Elem()
 }
 
 func mustFindType(typname string) reflect.Type {
@@ -89,15 +80,15 @@ func TesterFromJSON(v interface{}) (tester *Tester) {
 	M := v.(map[string]interface{})
 	typname := M["_type"].(string)
 	typ := mustFindType(typname)
-	tester = reflect.New(typ).Interface().(*Tester)
-	(*tester).FromMap(M)
-	return
+	t := reflect.New(typ).Interface().(Tester)
+	t.FromMap(M)
+	return &t
 }
 
-func TesterToJSON(tester Tester) interface{} {
-	typname := typeName(tester)
+func TesterToJSON(tester *Tester) interface{} {
+	typname := typeName(*tester)
 	_ = mustFindType(typname)
-	M := tester.ToMap()
+	M := (*tester).ToMap()
 	M["_type"] = typname
 	return M
 }
