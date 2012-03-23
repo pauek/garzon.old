@@ -164,7 +164,7 @@ func testExecutionError(t *testing.T, model, accused string, expected string) {
 		t.Errorf(`Error matching regexp "%s" against "%s"`, expected, R[0].Veredict)
 	}
 	if ! found {
-		t.Errorf(`Wrong veredict "%s" vs. "%s"`, expected, R[0].Veredict)
+		t.Errorf(`Wrong veredict "%s", should be "%s"`, R[0].Veredict, expected)
 	}
 
 }
@@ -175,7 +175,7 @@ func TestTimeLimitExceeded(t *testing.T) {
 }
 
 func TestSegmentationFault(t *testing.T) {
-	segFault := `int main() { int T[1]; T[100000000] = 1; }`
+	segFault := `int main() { int T[1]; T[1000000] = 1; }`
 	testExecutionError(t, Minimal, segFault, "Segmentation Fault")
 }
 
