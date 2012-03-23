@@ -2,8 +2,7 @@
 package db
 
 import (
-	"fmt"
-	//	"encoding/json"
+	// "fmt"
 	"testing"
 )
 
@@ -13,21 +12,42 @@ type Test1 struct {
 	C bool
 }
 
-func TestA(t *testing.T) {
-	m, _ := ToMap(Test1{A: "hi", B: 2, C: true})
-	fmt.Println(m)
-	var x Test1
-	_ = FromMap(m.(Map), &x)
-	fmt.Println(x)
+type MyData struct {
+	First, Last string
+	Age float64
 }
 
-type Test2 struct {
-	D Test1
-	E int
-	F string
+func init() {
+	Register(MyData{})
 }
 
-func TestB(t *testing.T) {
-	m, _ := ToMap(Test2{D: Test1{A: "ho", B: 3, C: false}, E: 4, F: "ha"})
-	fmt.Println(m)
+var db Database = Database{
+   host: "localhost", 
+   port: "5984", 
+   db: "test",
+}
+
+func TestPutMyData(t *testing.T) {
+	d := MyData{First: "Groucho", Last: "Marx", Age: 55}
+	_, rev, err := db.Get("groucho")
+	if err == nil {
+		_ = db.Delete("groucho", rev)
+	}
+	err = db.Put("groucho", d)
+	if err != nil {
+		t.Errorf("Cannot put: %s\n", err)
+	}
+}
+
+func TestGetMyData(t *testing.T) {
+	_d, _, err := db.Get("groucho")
+	if err != nil {
+		t.Errorf("Cannot get: %s\n", err)
+	}
+	d := _d.(*MyData)
+	if d.First != "Groucho" ||
+		d.Last  != "Marx" ||
+		d.Age   != 55 {
+		t.Errorf("Wrong data\n")
+	}
 }

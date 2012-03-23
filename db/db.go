@@ -67,20 +67,21 @@ func FromMap(M Map, v interface{}) error {
 	val := reflect.ValueOf(v)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
-		if val.Kind() == reflect.Struct {
-			t := val.Type()
-			z := reflect.Zero(t)
-			n := z.NumField()
-			for i := 0; i < n; i++ {
-				f := val.Field(i)
-				key := t.Field(i).Name
-				if f.CanSet() {
-					if fv, ok := M[key]; ok {
-						f.Set(reflect.ValueOf(fv))
-					}
+	}
+	if val.Kind() == reflect.Struct {
+		t := val.Type()
+		z := reflect.Zero(t)
+		n := z.NumField()
+		for i := 0; i < n; i++ {
+			f := val.Field(i)
+			key := t.Field(i).Name
+			if f.CanSet() {
+				if fv, ok := M[key]; ok {
+					f.Set(reflect.ValueOf(fv))
 				}
 			}
 		}
+		return nil
 	}
 	return fmt.Errorf("FromMap: Unsupported Kind '%s'", val.Kind())
 }
@@ -141,9 +142,9 @@ func (D *Database) Get(id string) (v interface{}, rev string, err error) {
 		err = fmt.Errorf("Get: json.Unmarshal error: %s\n", err)
 		return 
 	}
-	typ := mustFindType(M["_type"].(string))
+	typ := mustFindType(M[".type"].(string))
 	v = reflect.New(typ).Interface()
-	if err = FromMap(M, &v); err != nil {
+	if err = FromMap(M, v); err != nil {
 		err = fmt.Errorf("Get: FromMap error: %s\n", err)
 		return
 	}
@@ -153,13 +154,13 @@ func (D *Database) Get(id string) (v interface{}, rev string, err error) {
 
 func (D *Database) Put(id string, v interface{}) error {
 	out, err := ToMap(v)
-	M := out.(map[string]interface{})
 	if err != nil {
 		return fmt.Errorf("Put: ToMap error: %s\n", err)
 	}
+	M := out.(Map)
 	M["_id"]   = id
-	M["_type"] = typeName(v)
-	return D.put(M)
+	M[".type"] = typeName(v)
+	return D.put(id, M)
 }
 
 func (D *Database) Update(id, rev string, v interface{}) error {
@@ -170,17 +171,17 @@ func (D *Database) Update(id, rev string, v interface{}) error {
 	}
 	M["_id"]   = id
 	M["_rev"]  = rev
-	M["_type"] = typeName(v)
-	return D.put(M)
+	M[".type"] = typeName(v)
+	return D.put(id, M)
 }
 
-func (D *Database) put(M Map) error {
+func (D *Database) put(id string, M Map) error {
 	data, err := json.Marshal(M)
 	if err != nil {
 		return fmt.Errorf("Put: json.Marshal error: %s\n", err)
 	}
 	buff := bytes.NewBuffer(data)
-	req, err := http.NewRequest("PUT", D.url(M["_id"].(string)), buff)
+	req, err := http.NewRequest("PUT", D.url(id), buff)
 	if err != nil {
 		return fmt.Errorf("Put: cannot create request: %s\n", err)
 	}
@@ -189,13 +190,16 @@ func (D *Database) put(M Map) error {
 	case err != nil:
 		return fmt.Errorf("Put: http.client error: %s\n", err)
 	case resp.StatusCode != 201:
+		body, _ := ioutil.ReadAll(resp.Body)
+		fmt.Printf("%s\n", body)
 		return fmt.Errorf("Put: HTTP status = '%s'\n", resp.Status)
 	}
 	return nil
 }
 
-func (D *Database) Delete(id string) error {
+func (D *Database) Delete(id, rev string) error {
 	req, err := http.NewRequest("DELETE", D.url(id), nil)
+	req.Header.Set("If-Match", rev)
 	if err != nil {
 		return fmt.Errorf("Delete: cannot create request: %s\n", err)
 	}
