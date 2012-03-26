@@ -147,7 +147,7 @@ func init() {
 }
 
 func (E *ProgramEvaluator) StartEvaluation(ev Evaluation, ID *string) error {
-	id  := _sha1(ev.Accused.Code)
+	id  := hash(ev.Accused.Code)
 	C := NewContext(E.BaseDir + "/" + id, &ev)
 	if err := C.CreateDirectory(); err != nil { 
 		return err 

@@ -12,8 +12,6 @@ import (
 	"garzon/eval"
 )
 
-// Tests /////////////////////////////////////////////////////////////
-
 type Tester interface {
 	eval.Tester
 	SetUp(*Context, *exec.Cmd) error
@@ -29,13 +27,6 @@ type InputTester struct {
 
 func init() {
 	db.Register("Input", InputTester{})
-}
-
-func (I *InputTester) Veredict() eval.Result {
-	if I.modelOut.String() == I.accusedOut.String() {
-		return eval.Result{Veredict: "Accept"}
-	} 
-	return eval.Result{Veredict: "Wrong Answer"}
 }
 
 func (I *InputTester) SetUp(C *Context, cmd *exec.Cmd) error {
@@ -54,4 +45,11 @@ func (I *InputTester) SetUp(C *Context, cmd *exec.Cmd) error {
 
 func (I *InputTester) CleanUp(*Context) error {
 	return nil
+}
+
+func (I *InputTester) Veredict() eval.Result {
+	if I.modelOut.String() == I.accusedOut.String() {
+		return eval.Result{Veredict: "Accept"}
+	} 
+	return eval.Result{Veredict: "Wrong Answer"}
 }
