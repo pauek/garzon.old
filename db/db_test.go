@@ -67,7 +67,7 @@ func TestMyData(t *testing.T) {
 	}
 
 	// Delete
-	if err := db.Delete("groucho", rev); err != nil {
-		t.Errorf("Cannot delete 'groucho': %s\n", err)
+	if err := db.Delete(pid, rev); err != nil {
+		t.Errorf("Cannot delete '%s': %s\n", pid, err)
 	}
 }

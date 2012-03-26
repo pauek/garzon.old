@@ -198,6 +198,7 @@ func (D *Database) Get(id string) (v interface{}, rev string, err error) {
 		return 
 	}
 	v = obj.Inner
+	rev = resp.Header.Get("Etag")
 	return 
 }
 
