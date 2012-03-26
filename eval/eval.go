@@ -1,11 +1,6 @@
 
 package eval
 
-import (
-	"log"
-	"reflect"
-)	
-
 type Problem struct {
 	Title, Solution string
 	Tests []Tester

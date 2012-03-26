@@ -13,8 +13,9 @@ import (
 	"strings"
 	"bytes"
 
+	"garzon/db"
 	"garzon/eval"
-	"garzon/eval/program/lang"
+	"garzon/eval/programming/lang"
 )
 
 // utils //
@@ -51,8 +52,7 @@ type InputTester struct {
 }
 
 func init() {
-	var t InputTester
-	eval.RegisterTester(&t)
+	db.Register("Input", InputTester{})
 }
 
 func (I *InputTester) ToMap() map[string]interface{} {
