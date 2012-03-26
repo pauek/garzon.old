@@ -21,9 +21,9 @@ type Test2 struct {
 }
 
 func init() {
-	Register(Problem{})
-	Register(Test1{})
-	Register(Test2{})
+	Register("Problem", Problem{})
+	Register("Test1", Test1{})
+	Register("Test2", Test2{})
 }
 
 func TestProblem(t *testing.T) {

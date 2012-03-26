@@ -82,18 +82,18 @@ func marshal(v interface{}, preamble map[string]string) ([]byte, error) {
 }
 
 func (obj *Obj) MarshalJSON() ([]byte, error) {
-	return marshal(obj.Inner, map[string]string{ "-type": typeName(obj.Inner) })
+	return marshal(obj.Inner, map[string]string{ "-type": findAlias(obj.Inner) })
 }
 
 func (obj *Obj) UnmarshalJSON(data []byte) (err error) {
 	var t struct {
-		Typ string `json:"-type"`
+		Alias string `json:"-type"`
 	}
 	if err = json.Unmarshal(data, &t); err != nil {
 		err = fmt.Errorf("Cannot json.Unmarshal id & rev: %s\n", err)
 		return 
 	}
-	typ := mustFindType(t.Typ)
+	typ := findType(t.Alias)
 	obj.Inner = reflect.New(typ).Interface()
 	if err = json.Unmarshal(data, obj.Inner); err != nil {
 		obj.Inner = nil
@@ -104,10 +104,17 @@ func (obj *Obj) UnmarshalJSON(data []byte) (err error) {
 
 // Type Map
 
-var typMap map[string]reflect.Type
+type TypeInfo struct {
+	Typ reflect.Type
+	Alias string
+}
+
+var typeMap  map[string]TypeInfo // typename -> TypeInfo
+var aliasMap map[string]string   // alias -> typename
 
 func init() {
-	typMap = make(map[string]reflect.Type)
+	typeMap  = make(map[string]TypeInfo)
+	aliasMap = make(map[string]string)
 }
 
 func typeName(v interface{}) string {
@@ -118,20 +125,39 @@ func typeName(v interface{}) string {
 	return typ.PkgPath() + ":" + typ.Name() 
 }
 
-func mustFindType(typname string) reflect.Type {
-	typ, ok := typMap[typname]
+func mustFindTypeInfo(typename string) TypeInfo {
+	t, ok := typeMap[typename]
 	if ! ok {
-		log.Fatalf("Tester '%s' not registered!\n", typname)
+		log.Fatalf("Typename '%s' not found!", typename)
 	}
-	return typ
+	return t
 }
 
-func Register(v interface{}) {
+func findAlias(v interface{}) string {
+	typ := mustFindTypeInfo(typeName(v))
+	return typ.Alias
+}
+
+func findType(alias string) reflect.Type {
+	typename, ok := aliasMap[alias]
+	if ! ok {
+		log.Fatalf("Alias '%s' not found!", alias)
+	}
+	return mustFindTypeInfo(typename).Typ
+}
+
+func Register(alias string, v interface{}) {
 	typ := reflect.TypeOf(v)
 	if typ.Kind() == reflect.Ptr {
-		panic("Registering a pointer")
+		panic("Registering a pointer!")
 	}
-	typMap[typeName(v)] = typ
+	typename := typeName(v)
+	typeMap[typename] = TypeInfo{Typ: typ, Alias: alias}
+	_, ok := aliasMap[alias]
+	if ok {
+		panic(fmt.Sprintf("Alias '%s' already registered!", alias))
+	}
+	aliasMap[alias] = typename
 }
 
 // Database
