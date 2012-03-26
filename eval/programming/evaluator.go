@@ -1,84 +1,20 @@
 
-package program
+package programming
 
 import (
 	"os"
 	"os/exec"
 	"syscall"
-	"io"
 	"io/ioutil"
 	"fmt"
-	"crypto/sha1"
 	"log"
 	"strings"
 	"bytes"
 
-	"garzon/db"
 	"garzon/eval"
 	"garzon/eval/programming/lang"
 )
 
-// utils //
-
-func _sha1(s string) string {
-	hash := sha1.New()
-	io.WriteString(hash, s)
-	return fmt.Sprintf("%x", hash.Sum(nil))
-}
-
-func prefix(s string, length int) string {
-	max := length
-	suffix := "..."
-	if len(s) < length {
-      max = len(s)
-		suffix = ""
-   }
-	return strings.Replace(s[:max], "\n", `\n`, -1) + suffix
-}
-
-// Tests /////////////////////////////////////////////////////////////
-
-type Tester interface {
-	eval.Tester
-	SetUp(*Context, *exec.Cmd) error
-	CleanUp(*Context) error
-}
-
-// InputTester ///////////////////////////////////////////////////////
-
-type InputTester struct {
-	Input string
-	modelOut, accusedOut bytes.Buffer
-}
-
-func init() {
-	db.Register("Input", InputTester{})
-}
-
-func (I *InputTester) Veredict() eval.Result {
-	if I.modelOut.String() == I.accusedOut.String() {
-		return eval.Result{Veredict: "Accept"}
-	} 
-	return eval.Result{Veredict: "Wrong Answer"}
-}
-
-func (I *InputTester) SetUp(C *Context, cmd *exec.Cmd) error {
-	log.Printf("Testing input '%s'\n", prefix(I.Input, 20))
-	cmd.Stdin  = strings.NewReader(I.Input)
-	switch (C.Mode()) {
-	case "model":
-		cmd.Stdout = &I.modelOut
-	case "accused":
-		cmd.Stdout = &I.accusedOut
-	default:
-		return fmt.Errorf("Unknown mode '%s'\n", C.Mode())
-	}
-	return nil
-}
-
-func (I *InputTester) CleanUp(*Context) error {
-	return nil
-}
 
 // Context /////////////////////////////////////////////////
 
