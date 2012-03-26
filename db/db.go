@@ -66,7 +66,6 @@ type Obj struct {
 }
 
 func marshal(v interface{}, preamble map[string]string) ([]byte, error) {
-	fmt.Printf("marshal(%#v, %#v)\n", v, preamble)
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "{")
 	for key, value := range preamble {
@@ -79,13 +78,10 @@ func marshal(v interface{}, preamble map[string]string) ([]byte, error) {
 		return nil, err
 	}
 	fmt.Fprintf(&b, "%s", json[1:]) // includes '}'
-	bytes := b.Bytes()
-	fmt.Printf("json: %s\n", bytes)
 	return b.Bytes(), nil
 }
 
 func (obj *Obj) MarshalJSON() ([]byte, error) {
-	fmt.Printf("MarshalJSON(%#v)\n", obj)
 	return marshal(obj.Inner, map[string]string{ "-type": typeName(obj.Inner) })
 }
 
@@ -98,9 +94,7 @@ func (obj *Obj) UnmarshalJSON(data []byte) (err error) {
 		return 
 	}
 	typ := mustFindType(t.Typ)
-	fmt.Printf("Unmarshal: %v\n", typ)
 	obj.Inner = reflect.New(typ).Interface()
-	fmt.Printf("obj.Inner: %#v\n", obj.Inner)
 	if err = json.Unmarshal(data, obj.Inner); err != nil {
 		obj.Inner = nil
 		err = fmt.Errorf("Inner json.Unmarshal error: %s\n", err)
@@ -203,16 +197,16 @@ func (D *Database) Get(id string) (v interface{}, rev string, err error) {
 		err = fmt.Errorf("Get: json.Unmarshal error: %s\n", err)
 		return 
 	}
-	v = obj
+	v = obj.Inner
 	return 
 }
 
 func (D *Database) Put(id string, v interface{}) error {
-	return D.put(id, "", v)
+	return D.put(id, "", &Obj{v})
 }
 
 func (D *Database) Update(id, rev string, v interface{}) error {
-	return D.put(id, rev, v)
+	return D.put(id, rev, &Obj{v})
 }
 
 func (D *Database) put(id, rev string, v interface{}) error {

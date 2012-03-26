@@ -36,13 +36,13 @@ func TestMyData(t *testing.T) {
 	const pid = "Cpp.Intro.SumaEnteros"
 
 	// Put
-	P := Obj{&Problem{
+	P := &Problem{
 	   Title: "Suma de Enteros",
       Tests: []Obj {
 			Obj{&Test1{A: "Input test1"}},
 			Obj{&Test2{B: 45}},
 		},
-	}}
+	}
 	rev, err := db.Rev(pid)
 	if rev != "" {
 		if err := db.Delete(pid, rev); err != nil {
@@ -50,7 +50,7 @@ func TestMyData(t *testing.T) {
 			return
 		}
 	}
-	err = db.Put(pid, &P)
+	err = db.Put(pid, P)
 	if err != nil {
 		t.Errorf("Cannot put: %s\n", err)
 	}
