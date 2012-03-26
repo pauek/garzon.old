@@ -6,12 +6,6 @@ import (
 	"testing"
 )
 
-type Test1 struct {
-	A string
-	B int
-	C bool
-}
-
 type MyData struct {
 	First, Last string
 	Age float64
@@ -27,27 +21,38 @@ var db Database = Database{
    db: "test",
 }
 
-func TestPutMyData(t *testing.T) {
-	d := MyData{First: "Groucho", Last: "Marx", Age: 55}
-	_, rev, err := db.Get("groucho")
-	if err == nil {
-		_ = db.Delete("groucho", rev)
+func TestMyData(t *testing.T) {
+	// Put
+	d := &MyData{First: "Groucho", Last: "Marx", Age: 55}
+	rev, err := db.Rev("groucho")
+	if rev != "" {
+		if err := db.Delete("groucho", rev); err != nil {
+			t.Errorf("Can't delete rev '%s' of 'groucho': %s\n", rev, err)
+			return
+		}
 	}
 	err = db.Put("groucho", d)
 	if err != nil {
 		t.Errorf("Cannot put: %s\n", err)
 	}
-}
-
-func TestGetMyData(t *testing.T) {
-	_d, _, err := db.Get("groucho")
+	// Get
+	obj, rev, err := db.Get("groucho")
 	if err != nil {
 		t.Errorf("Cannot get: %s\n", err)
 	}
-	d := _d.(*MyData)
+	d, ok := obj.(*MyData)
+	if ! ok {
+		t.Errorf("Returned object is not of type 'MyData'")
+		return
+	}
 	if d.First != "Groucho" ||
 		d.Last  != "Marx" ||
 		d.Age   != 55 {
 		t.Errorf("Wrong data\n")
 	}
+	// Delete
+	if err := db.Delete("groucho", rev); err != nil {
+		t.Errorf("Cannot delete 'groucho': %s\n", err)
+	}
 }
+
