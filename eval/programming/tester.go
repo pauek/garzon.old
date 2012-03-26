@@ -12,21 +12,15 @@ import (
 	"garzon/eval"
 )
 
-type Tester interface {
-	eval.Tester
-	SetUp(*Context, *exec.Cmd) error
-	CleanUp(*Context) error
-}
-
 // InputTester ///////////////////////////////////////////////////////
+
+func init() {
+	db.Register("Input", InputTester{})
+}
 
 type InputTester struct {
 	Input string
 	modelOut, accusedOut bytes.Buffer
-}
-
-func init() {
-	db.Register("Input", InputTester{})
 }
 
 func (I *InputTester) SetUp(C *Context, cmd *exec.Cmd) error {

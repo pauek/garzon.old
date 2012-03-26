@@ -27,8 +27,8 @@ func init() {
 
 func mkEvaluation(model, accused string) Evaluation {
 	ev := new(Evaluation)
-	ev.Model   = Text{Lang: "c++", Code: model}
-	ev.Accused = Text{Lang: "c++", Code: accused}
+	ev.Model   = Code{Lang: "c++", Text: model}
+	ev.Accused = Code{Lang: "c++", Text: accused}
 	return *ev
 }
 

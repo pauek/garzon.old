@@ -3,13 +3,13 @@ package programming
 
 import (
 	"os"
+	"fmt"
+	"log"
+	"bytes"
+	"strings"
 	"os/exec"
 	"syscall"
 	"io/ioutil"
-	"fmt"
-	"log"
-	"strings"
-	"bytes"
 
 	"garzon/eval"
 	"garzon/eval/programming/lang"
@@ -18,19 +18,6 @@ import (
 
 // Context /////////////////////////////////////////////////
 
-type Text struct {
-	Lang, Code string
-}
-
-type Constraints struct { 
-	Memory, Time, FileSize int 
-}
-
-type Evaluation struct {
-	Accused, Model Text
-	Limits Constraints
-}
-	
 type Context struct {
 	dir  string // working directory
 	mode string // current program: "model" or "accused"
@@ -52,8 +39,8 @@ func NewContext(dir string, ev *Evaluation) *Context {
 		"accused": ev.Accused.Lang,
 	}
 	C.code = map[string]string {
-		"model":   ev.Model.Code,
-		"accused": ev.Accused.Code,
+		"model":   ev.Model.Text,
+		"accused": ev.Accused.Text,
 	}
 	return C
 }
@@ -133,6 +120,11 @@ func (C *Context) Destroy() error {
 
 // ProgramEvaluator //////////////////////////////////////////////////
 
+type Evaluation struct {
+	Accused, Model Code
+	Limits Constraints
+}
+	
 var Evaluator *ProgramEvaluator
 
 type ProgramEvaluator struct {
@@ -147,7 +139,7 @@ func init() {
 }
 
 func (E *ProgramEvaluator) StartEvaluation(ev Evaluation, ID *string) error {
-	id  := hash(ev.Accused.Code)
+	id  := hash(ev.Accused.Text)
 	C := NewContext(E.BaseDir + "/" + id, &ev)
 	if err := C.CreateDirectory(); err != nil { 
 		return err 
