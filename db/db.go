@@ -137,11 +137,11 @@ func Register(v interface{}) {
 // Database
 
 type Database struct {
-	host, port, db string
+	server, dbname string
 }
 
 func (D *Database) url(path string) string {
-	return fmt.Sprintf("http://%s:%s/%s/%s", D.host, D.port, D.db, path)
+	return fmt.Sprintf("http://%s/%s/%s", D.server, D.dbname, path)
 }
 
 func (D *Database) Rev(id string) (rev string, err error) {
@@ -254,3 +254,77 @@ func (D *Database) Delete(id, rev string) error {
 	}
 	return nil
 }
+
+// Database Functions
+
+func Get(server, dbname string) (db *Database, err error) {
+	db = nil
+	url := fmt.Sprintf("http://%s/%s/", server, dbname)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		err = fmt.Errorf("Get: cannot create request: %s\n", err)
+		return
+	}
+	resp, err := client.Do(req)
+	switch {
+	case err != nil:
+		err = fmt.Errorf("Get: http.client error: %s\n", err)
+		return
+	case resp.StatusCode == 404:
+		err = fmt.Errorf("Get: database '%s' doesn't exist\n", dbname)
+		return
+	case resp.StatusCode != 200:
+		err = fmt.Errorf("Get: HTTP status = '%s'\n", resp.Status)
+		return
+	}
+	return &Database{server, dbname}, nil
+}
+
+func Create(server, dbname string) (db *Database, err error) {
+	db = nil
+	url := fmt.Sprintf("http://%s/%s/", server, dbname)
+	req, err := http.NewRequest("PUT", url, nil)
+	if err != nil {
+		err = fmt.Errorf("Get: cannot create request: %s\n", err)
+		return
+	}
+	resp, err := client.Do(req)
+	switch {
+	case err != nil:
+		err = fmt.Errorf("Create: http.client error: %s\n", err)
+		return
+	case resp.StatusCode != 201:
+		err = fmt.Errorf("Create: HTTP status = '%s'\n", resp.Status)
+		return
+	}
+	return &Database{server, dbname}, nil
+}
+
+func Delete(db *Database) (err error) {
+	req, err := http.NewRequest("DELETE", db.url(""), nil)
+	if err != nil {
+		err = fmt.Errorf("Get: cannot create request: %s\n", err)
+		return
+	}
+	resp, err := client.Do(req)
+	switch {
+	case err != nil:
+		err = fmt.Errorf("Create: http.client error: %s\n", err)
+		return
+	case resp.StatusCode == 404:
+		return
+	case resp.StatusCode != 200:
+		err = fmt.Errorf("Create: HTTP status = '%s'\n", resp.Status)
+		return
+	}
+	return
+}
+
+func GetOrCreate(server, dbname string) (db *Database, err error) {
+	db, err = Get(server, dbname)
+	if db == nil {
+		db, err = Create(server, dbname)
+	}
+	return
+}
+

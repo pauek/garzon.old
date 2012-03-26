@@ -26,14 +26,13 @@ func init() {
 	Register(Test2{})
 }
 
-var db Database = Database{
-   host: "localhost", 
-   port: "5984", 
-   db: "test",
-}
-
-func TestMyData(t *testing.T) {
+func TestProblem(t *testing.T) {
 	const pid = "Cpp.Intro.SumaEnteros"
+
+	db, err := GetOrCreate("localhost:5984", "test-problem-0001")
+	if err != nil {
+		t.Fatalf("Cannot get or create database: %s\n", err)
+	}
 
 	// Put
 	P := &Problem{
@@ -70,4 +69,6 @@ func TestMyData(t *testing.T) {
 	if err := db.Delete(pid, rev); err != nil {
 		t.Errorf("Cannot delete '%s': %s\n", pid, err)
 	}
+
+	Delete(db)
 }
