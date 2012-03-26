@@ -10,13 +10,21 @@
  necessary since Garzón has many different types of evaluators and
  tests.
 
- This requires that: 1) types register in a "Type Map", which
- associates type names with types themselves (since Go doesn't seem to
- provide this); 2) the JSON text that is sent to CouchDB includes
- a "-type" ("_type" is illegal) field with the type name of the stored
- object (along with an "_id" and "_rev" which are characteristic of
- CouchDB). Point number 2 is implemented quite "hackisly" inserting
- these fields in the textual representation that json.Marshal returns.
+ On top of this, objects may contain heterogeneous arrays of other
+ objects inside. For example, problem objects contain an array of
+ tests.
+
+ The way this is handled is the following:
+
+ - Every object that needs to be stored polymorphically has to be
+   "decorated" (enclosed) in an object of type db.Obj.
+
+ - The type db.Obj has special MarshalJSON and UnmarshalJSON methods
+   that take care of the "Inner" object. These methods write a field
+   in the JSON data with the type of the object ("-type").
+
+ - Every type that the database needs to care about has to be
+   registered previously in the type map.
 
 */
 
@@ -49,6 +57,55 @@ func NewUUID() string {
 		uuid[i] = hex[rand.Intn(16)]
 	}
 	return fmt.Sprintf("%s", uuid)
+}
+
+// Database Object
+
+type Obj struct {
+	Inner interface{}
+}
+
+func marshal(v interface{}, preamble map[string]string) ([]byte, error) {
+	fmt.Printf("marshal(%#v, %#v)\n", v, preamble)
+	var b bytes.Buffer
+	fmt.Fprintf(&b, "{")
+	for key, value := range preamble {
+		if value != "" {
+			fmt.Fprintf(&b, `"%s":"%s",`, key, value)
+		}
+	}
+	json, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Fprintf(&b, "%s", json[1:]) // includes '}'
+	bytes := b.Bytes()
+	fmt.Printf("json: %s\n", bytes)
+	return b.Bytes(), nil
+}
+
+func (obj *Obj) MarshalJSON() ([]byte, error) {
+	fmt.Printf("MarshalJSON(%#v)\n", obj)
+	return marshal(obj.Inner, map[string]string{ "-type": typeName(obj.Inner) })
+}
+
+func (obj *Obj) UnmarshalJSON(data []byte) (err error) {
+	var t struct {
+		Typ string `json:"-type"`
+	}
+	if err = json.Unmarshal(data, &t); err != nil {
+		err = fmt.Errorf("Cannot json.Unmarshal id & rev: %s\n", err)
+		return 
+	}
+	typ := mustFindType(t.Typ)
+	fmt.Printf("Unmarshal: %v\n", typ)
+	obj.Inner = reflect.New(typ).Interface()
+	fmt.Printf("obj.Inner: %#v\n", obj.Inner)
+	if err = json.Unmarshal(data, obj.Inner); err != nil {
+		obj.Inner = nil
+		err = fmt.Errorf("Inner json.Unmarshal error: %s\n", err)
+	}
+	return
 }
 
 // Type Map
@@ -89,12 +146,6 @@ type Database struct {
 	host, port, db string
 }
 
-type couchobj struct {
-	Id  string `json:"_id"`
-	Rev string `json:"_rev,omitempty"`
-	Typ string `json:"-type"`
-}
-
 func (D *Database) url(path string) string {
 	return fmt.Sprintf("http://%s:%s/%s/%s", D.host, D.port, D.db, path)
 }
@@ -103,24 +154,24 @@ func (D *Database) Rev(id string) (rev string, err error) {
 	rev, err = "", nil
 	req, err := http.NewRequest("HEAD", D.url(id), nil)
 	if err != nil {
-		err = fmt.Errorf("Get: cannot create request: %s\n", err)
+		err = fmt.Errorf("Rev: cannot create request: %s\n", err)
 		return
 	}
 	resp, err := client.Do(req)
 	switch {
 	case err != nil:
-		err = fmt.Errorf("Get: http.client error: %s\n", err)
+		err = fmt.Errorf("Rev: http.client error: %s\n", err)
 		return
 	case resp.StatusCode == 404:
 		err = nil // not found is not an error
 		return
 	case resp.StatusCode != 200:
-		err = fmt.Errorf("Get: HTTP status = '%s'\n", resp.Status)
+		err = fmt.Errorf("Rev: HTTP status = '%s'\n", resp.Status)
 		return
 	}
 	rev = resp.Header.Get("Etag")
 	if rev == "" {
-		err = fmt.Errorf("Header 'Etag' not found\n")
+		err = fmt.Errorf("Rev: Header 'Etag' not found\n")
 	}
 	return
 }
@@ -147,53 +198,35 @@ func (D *Database) Get(id string) (v interface{}, rev string, err error) {
 		err = fmt.Errorf("Get: cannot read response body: %s\n", err)
 		return 
 	}
-	var obj couchobj
+	var obj Obj
 	if err = json.Unmarshal(data, &obj); err != nil {
-		err = fmt.Errorf("Get: Head json.Unmarshal error: %s\n", err)
+		err = fmt.Errorf("Get: json.Unmarshal error: %s\n", err)
 		return 
 	}
-	rev = obj.Rev
-	typ := mustFindType(obj.Typ)
-	v = reflect.New(typ).Interface()
-	if err = json.Unmarshal(data, v); err != nil {
-		v, err = nil, fmt.Errorf("Get: Body json.Unmarshal error: %s\n", err)
-		return
-	}
+	v = obj
 	return 
 }
 
 func (D *Database) Put(id string, v interface{}) error {
-	return D.put(id, couchobj{ id, "", typeName(v) }, v)
+	return D.put(id, "", v)
 }
 
 func (D *Database) Update(id, rev string, v interface{}) error {
-	return D.put(id, couchobj{ id, rev, typeName(v) }, v)
+	return D.put(id, rev, v)
 }
 
-func (D *Database) put(id string, obj couchobj, v interface{}) error {
-	head, err := json.Marshal(obj)
+func (D *Database) put(id, rev string, v interface{}) error {
+	// TODO: Detect that 'v' really is db.Obj
+	preamble := map[string]string {
+		"_id": id, 
+		"_rev": rev,
+	}
+	json, err := marshal(v, preamble)
 	if err != nil {
-		return fmt.Errorf("Put: Head json.Marshal error: %s\n", err)
+		return fmt.Errorf("Put: json.Marshal error: %s\n", err)
 	}
-	body, err := json.Marshal(v)
-	if err != nil {
-		return fmt.Errorf("Put: Body json.Marshal error: %s\n", err)
-	}
-	fmt.Printf("head: '%s'\n", head)
-	fmt.Printf("body: '%s'\n", head)
-	// Begin Hackish part
-	body[0] = ',' // remove first '{'
-	head = head[:len(head)-1] // remove last '}'
-	fmt.Printf("%s%s\n", head, body)
-	var buff bytes.Buffer
-	if _, err := buff.Write(head); err != nil {
-		return fmt.Errorf("Put: Write head to buffer error: %s\n", err)
-	}
-	if _, err := buff.Write(body); err != nil {
-		return fmt.Errorf("Put: Write body to buffer error: %s\n", err)
-	}
-	// End Hackish part
-	req, err := http.NewRequest("PUT", D.url(id), &buff)
+	b := bytes.NewBuffer(json)
+	req, err := http.NewRequest("PUT", D.url(id), b)
 	if err != nil {
 		return fmt.Errorf("Put: cannot create request: %s\n", err)
 	}

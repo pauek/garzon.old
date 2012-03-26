@@ -2,17 +2,28 @@
 package db
 
 import (
-	// "fmt"
+	"fmt"
 	"testing"
+	"reflect"
 )
 
-type MyData struct {
-	First, Last string
-	Age float64
+type Problem struct {
+	Title string
+	Tests []Obj
+}
+
+type Test1 struct {
+	A string
+}
+
+type Test2 struct {
+	B int
 }
 
 func init() {
-	Register(MyData{})
+	Register(Problem{})
+	Register(Test1{})
+	Register(Test2{})
 }
 
 var db Database = Database{
@@ -22,37 +33,41 @@ var db Database = Database{
 }
 
 func TestMyData(t *testing.T) {
+	const pid = "Cpp.Intro.SumaEnteros"
+
 	// Put
-	d := &MyData{First: "Groucho", Last: "Marx", Age: 55}
-	rev, err := db.Rev("groucho")
+	P := Obj{&Problem{
+	   Title: "Suma de Enteros",
+      Tests: []Obj {
+			Obj{&Test1{A: "Input test1"}},
+			Obj{&Test2{B: 45}},
+		},
+	}}
+	rev, err := db.Rev(pid)
 	if rev != "" {
-		if err := db.Delete("groucho", rev); err != nil {
-			t.Errorf("Can't delete rev '%s' of 'groucho': %s\n", rev, err)
+		if err := db.Delete(pid, rev); err != nil {
+			t.Errorf("Can't delete rev '%s' of '%s': %s\n", rev, pid, err)
 			return
 		}
 	}
-	err = db.Put("groucho", d)
+	err = db.Put(pid, &P)
 	if err != nil {
 		t.Errorf("Cannot put: %s\n", err)
 	}
+
 	// Get
-	obj, rev, err := db.Get("groucho")
+	obj, rev, err := db.Get(pid)
 	if err != nil {
 		t.Errorf("Cannot get: %s\n", err)
 	}
-	d, ok := obj.(*MyData)
-	if ! ok {
-		t.Errorf("Returned object is not of type 'MyData'")
-		return
+	if ! reflect.DeepEqual(P, obj) {
+		fmt.Printf("%#v\n", P)
+		fmt.Printf("%#v\n", obj)
+		t.Errorf("Different data\n")
 	}
-	if d.First != "Groucho" ||
-		d.Last  != "Marx" ||
-		d.Age   != 55 {
-		t.Errorf("Wrong data\n")
-	}
+
 	// Delete
 	if err := db.Delete("groucho", rev); err != nil {
 		t.Errorf("Cannot delete 'groucho': %s\n", err)
 	}
 }
-
