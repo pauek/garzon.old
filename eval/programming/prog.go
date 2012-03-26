@@ -55,14 +55,6 @@ func init() {
 	db.Register("Input", InputTester{})
 }
 
-func (I *InputTester) ToMap() map[string]interface{} {
-	return map[string]interface{} { "input": I.Input }
-}
-
-func (I *InputTester) FromMap(M map[string]interface{}) {
-	I.Input = M["input"].(string)
-}
-
 func (I *InputTester) Veredict() eval.Result {
 	if I.modelOut.String() == I.accusedOut.String() {
 		return eval.Result{Veredict: "Accept"}
