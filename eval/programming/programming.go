@@ -21,9 +21,10 @@ type Constraints struct {
 }
 
 type Tester interface {
+	Prepare(*context)
 	SetUp(*context, *exec.Cmd) error
 	CleanUp(*context) error
-	Veredict() TestResult
+	Veredict(*context) TestResult
 }
 
 type Submission struct {

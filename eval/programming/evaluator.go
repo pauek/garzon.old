@@ -23,6 +23,8 @@ type context struct {
 	limits Constraints 
 	lang map[string]string
 	code map[string]string
+
+	State interface{}
 }
 
 func (C *context) Dir()     string { return C.dir }
@@ -184,10 +186,10 @@ func (E *ProgramEvaluator) runTest(C *context, T Tester, R *TestResult) (err err
 		}
 		return true
 	}
+	T.Prepare(C)
 	if ! runtest("model")   { return }
 	if ! runtest("accused") { return }
-
-	*R = T.Veredict()
+	*R = T.Veredict(C)
 	return nil
 }
 
