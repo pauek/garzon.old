@@ -131,7 +131,7 @@ func init() {
 }
 
 func (E *ProgramEvaluator) Submit(sub Submission) (R *Result) {
-	C, err := E.createContext(sub)
+	C, err := E.prepareContext(sub)
 	if err != nil {
 		return &Result{Veredict: fmt.Sprintf("%s\n", err)}
 	}
@@ -144,7 +144,7 @@ func (E *ProgramEvaluator) Submit(sub Submission) (R *Result) {
 	return
 }
 
-func (E *ProgramEvaluator) createContext(sub Submission) (C *context, err error) {
+func (E *ProgramEvaluator) prepareContext(sub Submission) (C *context, err error) {
 	id  := hash(sub.Accused.Text)
 	C = newContext(E.BaseDir + "/" + id, &sub)
 	if err := C.CreateDirectory(); err != nil { 
