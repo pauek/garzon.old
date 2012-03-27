@@ -9,7 +9,6 @@ import (
 	"bytes"
 
 	"garzon/db"
-	"garzon/eval"
 )
 
 // InputTester ///////////////////////////////////////////////////////
@@ -41,9 +40,9 @@ func (I *InputTester) CleanUp(*Context) error {
 	return nil
 }
 
-func (I *InputTester) Veredict() eval.Result {
+func (I *InputTester) Veredict() TestResult {
 	if I.modelOut.String() == I.accusedOut.String() {
-		return eval.Result{Veredict: "Accept"}
+		return TestResult{Veredict: "Accept"}
 	} 
-	return eval.Result{Veredict: "Wrong Answer"}
+	return TestResult{Veredict: "Wrong Answer"}
 }

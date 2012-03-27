@@ -1,16 +1,17 @@
 
 package eval
 
-type Problem struct {
-	Title, Solution string
-	Tests []Tester
+import (
+	"garzon/eval/programming"
+)
+
+// useful?
+
+var ProgramEvaluator *programming.ProgramEvaluator
+
+func init() {
+	ProgramEvaluator = programming.Evaluator
 }
 
-type Tester interface {
-	Veredict() Result
-}
 
-type Result struct {
-	Veredict string
-	Reason   interface{}
-}
+

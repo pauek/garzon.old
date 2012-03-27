@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"io/ioutil"
 
-	"garzon/eval"
 	"garzon/eval/programming/lang"
 )
 
@@ -30,17 +29,17 @@ func (C *Context) Dir()     string { return C.dir }
 func (C *Context) ExecDir() string { return C.dir + "/eval" }
 func (C *Context) Mode()    string { return C.mode }
 
-func NewContext(dir string, ev *Evaluation) *Context {
+func NewContext(dir string, sub *Submission) *Context {
 	C := new(Context)
 	C.dir = dir
-	C.limits = ev.Limits
+	C.limits = sub.Problem.Limits
 	C.lang = map[string]string {
-		"model":   ev.Model.Lang,
-		"accused": ev.Accused.Lang,
+		"model":   sub.Problem.Solution.Lang,
+		"accused": sub.Accused.Lang,
 	}
 	C.code = map[string]string {
-		"model":   ev.Model.Text,
-		"accused": ev.Accused.Text,
+		"model":   sub.Problem.Solution.Text,
+		"accused": sub.Accused.Text,
 	}
 	return C
 }
@@ -129,30 +128,40 @@ var Evaluator *ProgramEvaluator
 
 type ProgramEvaluator struct {
 	BaseDir string
-	Contexts map[string]*Context
 }
 
 func init() {
 	Evaluator = new(ProgramEvaluator)
 	Evaluator.BaseDir  = os.Getenv("HOME")
-	Evaluator.Contexts = make(map[string]*Context)
 }
 
-func (E *ProgramEvaluator) StartEvaluation(ev Evaluation, ID *string) error {
-	id  := hash(ev.Accused.Text)
-	C := NewContext(E.BaseDir + "/" + id, &ev)
+func (E *ProgramEvaluator) Submit(sub Submission) (R *Result) {
+	C, err := E.CreateContext(sub)
+	if err != nil {
+		return &Result{Veredict: fmt.Sprintf("%s\n", err)}
+	}
+	numTests := len(sub.Problem.Tests)
+	R = &Result{Results: make([]TestResult, numTests)}
+	for i, tester := range sub.Problem.Tests {
+		E.RunTest(C, tester, &R.Results[i])
+	}
+	C.Destroy()
+	return
+}
+
+func (E *ProgramEvaluator) CreateContext(sub Submission) (C *Context, err error) {
+	id  := hash(sub.Accused.Text)
+	C = NewContext(E.BaseDir + "/" + id, &sub)
 	if err := C.CreateDirectory(); err != nil { 
-		return err 
+		return nil, err 
 	}
 	if err := C.WriteAndCompile("model"); err != nil { 
-		return err 
+		return nil, err 
 	}
 	if err := C.WriteAndCompile("accused"); err != nil {
-		return err
+		return nil, err
 	}
-	E.Contexts[id] = C
-	*ID = id
-	return nil
+	return C, nil
 }
 
 type TestInfo struct {
@@ -172,18 +181,13 @@ func getExitStatus(err error) int {
 	return status.ExitStatus()
 }
 
-func (E *ProgramEvaluator) RunTest(T TestInfo, R *eval.Result) (err error) {
-	C, ok := E.Contexts[T.EvalID]
-	if ! ok {
-		return fmt.Errorf("Evaluation ID '%s' not found", T.EvalID)
-	}
-	
+func (E *ProgramEvaluator) RunTest(C *Context, T Tester, R *TestResult) (err error) {
 	runtest := func (whom string) bool {
 		if err = C.SwitchTo(whom); err != nil { 
 			return false 
 		}
 		cmd := C.MakeCommand()
-		if err = T.Test.SetUp(C, cmd); err != nil { 
+		if err = T.SetUp(C, cmd); err != nil { 
 			return false 
 		}
 		var stderr bytes.Buffer
@@ -197,7 +201,7 @@ func (E *ProgramEvaluator) RunTest(T TestInfo, R *eval.Result) (err error) {
 			}
 			return false
 		}
-		if err = T.Test.CleanUp(C); err != nil { 
+		if err = T.CleanUp(C); err != nil { 
 			return false 
 		}
 		return true
@@ -205,19 +209,6 @@ func (E *ProgramEvaluator) RunTest(T TestInfo, R *eval.Result) (err error) {
 	if ! runtest("model")   { return }
 	if ! runtest("accused") { return }
 
-	*R = T.Test.Veredict()
-	return nil
-}
-
-func (E *ProgramEvaluator) EndEvaluation(EvalID string, ok *bool) error {
-	*ok = false
-	C, found := E.Contexts[EvalID]
-	if ! found {
-		return fmt.Errorf("Evaluation ID '%s' not found", EvalID)
-	}
-	if err := C.Destroy(); err != nil {
-		return err
-	}
-	*ok = true
+	*R = T.Veredict()
 	return nil
 }

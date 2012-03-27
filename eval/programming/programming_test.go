@@ -8,8 +8,6 @@ import (
 	"strings"
 	"regexp"
 	"testing"
-	
-	"garzon/eval"
 )	
 
 var ID string
@@ -25,47 +23,30 @@ func init() {
 	Evaluator.BaseDir = dir
 }
 
-func mkEvaluation(model, accused string) Evaluation {
-	ev := new(Evaluation)
-	ev.Model   = Code{Lang: "c++", Text: model}
-	ev.Accused = Code{Lang: "c++", Text: accused}
-	return *ev
-}
-
 var keepDir bool
 
-func evalWithInputs(model, accused string, I []string) (R []eval.Result, err error) {
-	var id string
-	var ok bool
-
-	ev := mkEvaluation(model, accused)
-	if err = Evaluator.StartEvaluation(ev, &id); err != nil {
-		return nil, err
+func evalWithInputs(model, accused string, I []string) (R *Result) {
+	prob := &Problem{
+	   Title: "Doesn't matter...",
+      Solution: Code{Lang: "c++", Text: model},
+      Tests: make([]Tester, len(I)),
 	}
-
-	R = make([]eval.Result, len(I))
+	sub := Submission{
+	   Problem: prob, 
+	   Accused: Code{Lang: "c++", Text: accused},
+	}
 	for i, input := range I {
-		T := TestInfo{ id, &InputTester{ Input: input } }
-		if err = Evaluator.RunTest(T, &R[i]); err != nil {
-			R[i].Veredict = fmt.Sprintf("%s", err)
-		}
+		prob.Tests[i] = &InputTester{Input: input}
 	}
-
-	if ! keepDir {
-		if err = Evaluator.EndEvaluation(id, &ok); err != nil {
-			return nil, err
-		}
-	}
-
-	return R, nil
+	return Evaluator.Submit(sub)
 }
 
 const Minimal = `int main() {}`
 var OneEmptyInput = []string{""}
 
 func TestMinimal(t *testing.T) {
-	R, _ := evalWithInputs(Minimal, Minimal, OneEmptyInput)
-	if R[0].Veredict != "Accept" {
+	R := evalWithInputs(Minimal, Minimal, OneEmptyInput)
+	if R.Results[0].Veredict != "Accept" {
 		t.Fail()
 	}
 }
@@ -76,8 +57,8 @@ int main() { std::cout << "%s" << std::endl; }`
 func TestDifferentOutput(t *testing.T) {
 	model   := fmt.Sprintf(PrintX, "A");
 	accused := fmt.Sprintf(PrintX, "B");
-	R, _ := evalWithInputs(model, accused, OneEmptyInput)
-	if R[0].Veredict != "Wrong Answer" {
+	R := evalWithInputs(model, accused, OneEmptyInput)
+	if R.Results[0].Veredict != "Wrong Answer" {
 		t.Fail()
 	}
 }
@@ -85,24 +66,18 @@ func TestDifferentOutput(t *testing.T) {
 const Wrong = `int main{}`
 
 func TestModelDoesntCompile(t *testing.T) {
-	_, err := evalWithInputs(Wrong, Minimal, OneEmptyInput)
-	if err == nil {
-		t.Errorf("Compilation should fail")
-	}
-	errmsg := fmt.Sprintf("%s", err)
+	R := evalWithInputs(Wrong, Minimal, OneEmptyInput)
+	errmsg := fmt.Sprintf("%s", R.Veredict)
 	if ! strings.HasPrefix(errmsg, "Error compiling 'model':") {
-		t.Errorf("Error is not \"Error compiling 'model'\"")
+		t.Errorf("Error is not \"Error compiling 'model'\" (is \"%s\")", errmsg)
 	}
 }
 
 func TestAccusedDoesntCompile(t *testing.T) {
-	_, err := evalWithInputs(Minimal, Wrong, OneEmptyInput)
-	if err == nil {
-		t.Errorf("Compilation should fail")
-	}
-	errmsg := fmt.Sprintf("%s", err)
+	R := evalWithInputs(Minimal, Wrong, OneEmptyInput)
+	errmsg := fmt.Sprintf("%s", R.Veredict)
 	if ! strings.HasPrefix(errmsg, "Error compiling 'accused':") {
-		t.Errorf("Error is not \"Error compiling 'accused'\"")
+		t.Errorf("Error is not \"Error compiling 'accused'\" (is \"%s\")", errmsg)
 	}
 }
 
@@ -117,11 +92,8 @@ int main() {
 
 func TestSumAB(t *testing.T) {
 	inputs := []string{"2 3\n", "4\n5", "1000 2000\n", "500000000 500000000\n"}
-	Res, err := evalWithInputs(SumAB, SumAB, inputs)
-	if err != nil {
-		t.Errorf("Test failed: %s\n", err)
-	}
-	for i, r := range Res {
+	Res := evalWithInputs(SumAB, SumAB, inputs)
+	for i, r := range Res.Results {
 		if r.Veredict != "Accept" {
 			inp := strings.Replace(inputs[i], "\n", `\n`, -1)
 			t.Errorf("Failed test '%s'\n", inp)
@@ -136,11 +108,8 @@ int main() { int a; std::cin >> a; std::cout << (a == 3 ? -1 : a); }`
 
 func TestEcho(t *testing.T) {
 	inputs := []string{"0", "1", "2", "3", "4", "5"}
-	Res, err := evalWithInputs(Echo, EchoX, inputs)
-	if err != nil {
-		t.Errorf("Test failed: %s\n", err)
-	}
-	for i, r := range Res {
+	Res := evalWithInputs(Echo, EchoX, inputs)
+	for i, r := range Res.Results {
 		if i == 3 {
 			if r.Veredict != "Wrong Answer" {
 				t.Errorf("Veredict should be \"Wrong Answer\" (test %d)", i)
@@ -154,17 +123,14 @@ func TestEcho(t *testing.T) {
 }
 
 func testExecutionError(t *testing.T, model, accused string, expected string) {
-	R, err := evalWithInputs(model, accused, OneEmptyInput)
+	R := evalWithInputs(model, accused, OneEmptyInput)
+	R0 := R.Results[0].Veredict
+	found, err := regexp.MatchString(expected, R0)
 	if err != nil {
-		t.Errorf("Evaluation should be ok (error: '%s')", err)
-		return
-	}
-	found, err := regexp.MatchString(expected, R[0].Veredict)
-	if err != nil {
-		t.Errorf(`Error matching regexp "%s" against "%s"`, expected, R[0].Veredict)
+		t.Errorf(`Error matching regexp "%s" against "%s"`, expected, R0)
 	}
 	if ! found {
-		t.Errorf(`Wrong veredict "%s", should be "%s"`, R[0].Veredict, expected)
+		t.Errorf(`Wrong veredict "%s", should be "%s"`, R0, expected)
 	}
 
 }
