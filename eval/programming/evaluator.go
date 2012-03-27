@@ -118,11 +118,6 @@ func (C *Context) Destroy() error {
 }
 
 // ProgramEvaluator //////////////////////////////////////////////////
-
-type Evaluation struct {
-	Accused, Model Code
-	Limits Constraints
-}
 	
 var Evaluator *ProgramEvaluator
 
@@ -136,20 +131,20 @@ func init() {
 }
 
 func (E *ProgramEvaluator) Submit(sub Submission) (R *Result) {
-	C, err := E.CreateContext(sub)
+	C, err := E.createContext(sub)
 	if err != nil {
 		return &Result{Veredict: fmt.Sprintf("%s\n", err)}
 	}
 	numTests := len(sub.Problem.Tests)
 	R = &Result{Results: make([]TestResult, numTests)}
 	for i, tester := range sub.Problem.Tests {
-		E.RunTest(C, tester, &R.Results[i])
+		E.runTest(C, tester, &R.Results[i])
 	}
 	C.Destroy()
 	return
 }
 
-func (E *ProgramEvaluator) CreateContext(sub Submission) (C *Context, err error) {
+func (E *ProgramEvaluator) createContext(sub Submission) (C *Context, err error) {
 	id  := hash(sub.Accused.Text)
 	C = NewContext(E.BaseDir + "/" + id, &sub)
 	if err := C.CreateDirectory(); err != nil { 
@@ -164,24 +159,7 @@ func (E *ProgramEvaluator) CreateContext(sub Submission) (C *Context, err error)
 	return C, nil
 }
 
-type TestInfo struct {
-	EvalID string
-	Test Tester
-}
-
-func getExitStatus(err error) int {
-	exiterror, ok := err.(*exec.ExitError)
-	if ! ok { 
-		log.Fatalf("Cannot get ProcessState") 
-	}
-	status, ok := exiterror.Sys().(syscall.WaitStatus)
-	if ! ok { 
-		log.Fatalf("Cannot get syscall.WaitStatus") 
-	}
-	return status.ExitStatus()
-}
-
-func (E *ProgramEvaluator) RunTest(C *Context, T Tester, R *TestResult) (err error) {
+func (E *ProgramEvaluator) runTest(C *Context, T Tester, R *TestResult) (err error) {
 	runtest := func (whom string) bool {
 		if err = C.SwitchTo(whom); err != nil { 
 			return false 
@@ -211,4 +189,16 @@ func (E *ProgramEvaluator) RunTest(C *Context, T Tester, R *TestResult) (err err
 
 	*R = T.Veredict()
 	return nil
+}
+
+func getExitStatus(err error) int {
+	exiterror, ok := err.(*exec.ExitError)
+	if ! ok { 
+		log.Fatalf("Cannot get ProcessState") 
+	}
+	status, ok := exiterror.Sys().(syscall.WaitStatus)
+	if ! ok { 
+		log.Fatalf("Cannot get syscall.WaitStatus") 
+	}
+	return status.ExitStatus()
 }
