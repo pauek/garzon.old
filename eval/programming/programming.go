@@ -21,8 +21,8 @@ type Constraints struct {
 }
 
 type Tester interface {
-	SetUp(*Context, *exec.Cmd) error
-	CleanUp(*Context) error
+	SetUp(*context, *exec.Cmd) error
+	CleanUp(*context) error
 	Veredict() TestResult
 }
 

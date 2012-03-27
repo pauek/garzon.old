@@ -22,7 +22,7 @@ type InputTester struct {
 	modelOut, accusedOut bytes.Buffer
 }
 
-func (I *InputTester) SetUp(C *Context, cmd *exec.Cmd) error {
+func (I *InputTester) SetUp(C *context, cmd *exec.Cmd) error {
 	log.Printf("Testing input '%s'\n", prefix(I.Input, 20))
 	cmd.Stdin  = strings.NewReader(I.Input)
 	switch (C.Mode()) {
@@ -36,7 +36,7 @@ func (I *InputTester) SetUp(C *Context, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (I *InputTester) CleanUp(*Context) error {
+func (I *InputTester) CleanUp(*context) error {
 	return nil
 }
 

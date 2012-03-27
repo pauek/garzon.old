@@ -15,9 +15,9 @@ import (
 )
 
 
-// Context /////////////////////////////////////////////////
+// context /////////////////////////////////////////////////
 
-type Context struct {
+type context struct {
 	dir  string // working directory
 	mode string // current program: "model" or "accused"
 	limits Constraints 
@@ -25,12 +25,12 @@ type Context struct {
 	code map[string]string
 }
 
-func (C *Context) Dir()     string { return C.dir }
-func (C *Context) ExecDir() string { return C.dir + "/eval" }
-func (C *Context) Mode()    string { return C.mode }
+func (C *context) Dir()     string { return C.dir }
+func (C *context) ExecDir() string { return C.dir + "/eval" }
+func (C *context) Mode()    string { return C.mode }
 
-func NewContext(dir string, sub *Submission) *Context {
-	C := new(Context)
+func newContext(dir string, sub *Submission) *context {
+	C := new(context)
 	C.dir = dir
 	C.limits = sub.Problem.Limits
 	C.lang = map[string]string {
@@ -44,7 +44,7 @@ func NewContext(dir string, sub *Submission) *Context {
 	return C
 }
 
-func (C *Context) CreateDirectory() error {
+func (C *context) CreateDirectory() error {
 	log.Printf("Creating directory '%s'", C.dir)
 	if err := os.RemoveAll(C.dir); err != nil {
 		return fmt.Errorf("Couldn't remove directory '%s'", C.dir)
@@ -57,7 +57,7 @@ func (C *Context) CreateDirectory() error {
 	return nil
 }
 
-func (C *Context)	WriteAndCompile(whom string) error {
+func (C *context)	WriteAndCompile(whom string) error {
 	L, ok := lang.Languages[C.lang[whom]]
 	if ! ok {
 		return fmt.Errorf("Unsupported language '%s'", C.lang[whom])
@@ -75,7 +75,7 @@ func (C *Context)	WriteAndCompile(whom string) error {
 	return nil
 }
 
-func (C *Context) SwitchTo(whom string) error {
+func (C *context) SwitchTo(whom string) error {
 	if whom != "model" && whom != "accused" {
 		return fmt.Errorf("Program '%s' not known")
 	}
@@ -89,7 +89,7 @@ func (C *Context) SwitchTo(whom string) error {
 	return nil
 }
 
-func (C *Context) MakeCommand() (cmd *exec.Cmd) {
+func (C *context) MakeCommand() (cmd *exec.Cmd) {
 	args := []string{}
 	addOption := func (flag string, val int) {
 		if val > 0 {
@@ -109,7 +109,7 @@ func (C *Context) MakeCommand() (cmd *exec.Cmd) {
 	return
 }
 
-func (C *Context) Destroy() error {
+func (C *context) Destroy() error {
 	if err := os.RemoveAll(C.dir); err != nil {
 		return fmt.Errorf("Couldn't remove directory '%s': %s", C.dir, err)
 	}
@@ -144,9 +144,9 @@ func (E *ProgramEvaluator) Submit(sub Submission) (R *Result) {
 	return
 }
 
-func (E *ProgramEvaluator) createContext(sub Submission) (C *Context, err error) {
+func (E *ProgramEvaluator) createContext(sub Submission) (C *context, err error) {
 	id  := hash(sub.Accused.Text)
-	C = NewContext(E.BaseDir + "/" + id, &sub)
+	C = newContext(E.BaseDir + "/" + id, &sub)
 	if err := C.CreateDirectory(); err != nil { 
 		return nil, err 
 	}
@@ -159,7 +159,7 @@ func (E *ProgramEvaluator) createContext(sub Submission) (C *Context, err error)
 	return C, nil
 }
 
-func (E *ProgramEvaluator) runTest(C *Context, T Tester, R *TestResult) (err error) {
+func (E *ProgramEvaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
 	runtest := func (whom string) bool {
 		if err = C.SwitchTo(whom); err != nil { 
 			return false 
