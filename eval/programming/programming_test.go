@@ -8,6 +8,8 @@ import (
 	"strings"
 	"regexp"
 	"testing"
+
+	"garzon/db"
 )	
 
 var ID string
@@ -29,14 +31,14 @@ func evalWithInputs(model, accused string, I []string) (R *Result) {
 	prob := &Problem{
 	   Title: "Doesn't matter...",
       Solution: Code{Lang: "c++", Text: model},
-      Tests: make([]Tester, len(I)),
+      Tests: make([]db.Obj, len(I)),
 	}
 	sub := Submission{
 	   Problem: prob, 
 	   Accused: Code{Lang: "c++", Text: accused},
 	}
 	for i, input := range I {
-		prob.Tests[i] = &InputTester{Input: input}
+		prob.Tests[i] = db.Obj{&InputTester{Input: input}}
 	}
 	return Evaluator.Submit(sub)
 }
@@ -242,21 +244,22 @@ int main() {
 var filesProb *Problem = &Problem{
    Title: "Simple One with Files",
    Solution: Code{Lang: "c++", Text: sumABFiles},
-   Tests: []Tester{
-		&FilesTester{
+   Tests: []db.Obj{
+		db.Obj{&FilesTester{
 		   InputFiles: []FileInfo{
-				FileInfo{RelPath: "A", Contents: []byte("13")},
-				FileInfo{RelPath: "B", Contents: []byte("17")},
+				FileInfo{RelPath: "A", Contents: "13"},
+				FileInfo{RelPath: "B", Contents: "17"},
 			},
 		   OutputFiles: []FileInfo{
 				FileInfo{RelPath: "C"},
 			},
-		},
+		}},
 	},
 }
 
 func TestFileTester(t *testing.T) {
 	var Res *Result
+
 	// Good
 	sub1 := Submission{
 	   Problem: filesProb, 
@@ -266,6 +269,7 @@ func TestFileTester(t *testing.T) {
 	if Res.Results[0].Veredict != "Accept" {
 		t.Errorf("Test should be accepted")
 	}
+
 	// Creates a file named 'D' instead of 'C'
 	sub2 := Submission{
 	   Problem: filesProb, 
@@ -275,6 +279,7 @@ func TestFileTester(t *testing.T) {
 	if Res.Results[0].Veredict != "Forbidden Syscall [open(\"D\")]" {
 		t.Errorf("Wrong Veredict")
 	}
+
 	// Doesn't compute sum
 	sub3 := Submission{
 	   Problem: filesProb, 

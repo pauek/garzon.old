@@ -16,7 +16,8 @@ import (
 // InputTester
 
 func init() {
-	db.Register("Input", InputTester{})
+	db.Register("prog.test.Input", InputTester{})
+	db.Register("prog.test.Files", FilesTester{})
 }
 
 // An InputTester tests a program by feeding it some input and
@@ -72,7 +73,7 @@ type FilesTester struct {
 
 type FileInfo struct {
 	RelPath  string // relative path with respecto to 'exe'
-	Contents []byte // contents of the file
+	Contents string // contents of the file
 }
 
 type FileTesterState struct {
@@ -101,7 +102,7 @@ func (I *FilesTester) SetUp(C *context, cmd *exec.Cmd) error {
 	}
 	for _, finfo := range I.InputFiles {
 		path := C.ExecDir() + "/" + finfo.RelPath
-		if err := ioutil.WriteFile(path, finfo.Contents, 0600); err != nil {
+		if err := ioutil.WriteFile(path, []byte(finfo.Contents), 0600); err != nil {
 			return fmt.Errorf("FilesTester: Cannot create file '%s': %s\n", path, err)
 		}
 	}

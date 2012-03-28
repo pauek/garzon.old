@@ -142,7 +142,8 @@ func (E *ProgramEvaluator) Submit(sub Submission) (R *Result) {
 	}
 	numTests := len(sub.Problem.Tests)
 	R = &Result{Results: make([]TestResult, numTests)}
-	for i, tester := range sub.Problem.Tests {
+	for i, dbobj := range sub.Problem.Tests {
+		tester := dbobj.Inner.(Tester)
 		E.runTest(C, tester, &R.Results[i])
 	}
 	if !E.KeepFiles {

@@ -3,13 +3,18 @@ package programming
 
 import (
 	"os/exec"
+	"garzon/db"
 )
+
+func init() {
+	db.Register("prog.Problem", Problem{})
+}
 
 type Problem struct {
 	Title    string
 	Solution Code
 	Limits   Constraints
-	Tests    []Tester
+	Tests    []db.Obj
 }
 
 type Code struct {
