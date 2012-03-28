@@ -125,11 +125,14 @@ var Evaluator *ProgramEvaluator
 
 type ProgramEvaluator struct {
 	BaseDir string
+	KeepFiles bool
 }
 
 func init() {
-	Evaluator = new(ProgramEvaluator)
-	Evaluator.BaseDir  = os.Getenv("HOME")
+	Evaluator = &ProgramEvaluator{
+      BaseDir: os.Getenv("HOME"),
+	   KeepFiles: false,
+	}
 }
 
 func (E *ProgramEvaluator) Submit(sub Submission) (R *Result) {
@@ -142,7 +145,9 @@ func (E *ProgramEvaluator) Submit(sub Submission) (R *Result) {
 	for i, tester := range sub.Problem.Tests {
 		E.runTest(C, tester, &R.Results[i])
 	}
-	C.Destroy()
+	if !E.KeepFiles {
+		C.Destroy()
+	}
 	return
 }
 

@@ -200,4 +200,88 @@ func TestForbiddenSyscall(t *testing.T) {
 // TODO: Forbidden Syscall (unlink) ?
 // TODO: Forbidden Syscall (kill) ?
 
+const sumABFiles = `
+#include <fstream>
+using namespace std;
 
+int main() {
+  ifstream A("A"), B("B");
+  ofstream C("C");
+  int a, b;
+  A >> a; B >> b;
+  C << a + b;
+}
+`
+
+const wrongFiles1 = `
+#include <fstream>
+using namespace std;
+
+int main() {
+  ifstream A("A"), B("B");
+  ofstream C("D");
+  int a, b;
+  A >> a; B >> b;
+  C << a + b;
+}
+`
+
+const wrongAnswer1 = `
+#include <fstream>
+using namespace std;
+
+int main() {
+  ifstream A("A"), B("B");
+  ofstream C("C");
+  int a, b;
+  A >> a; B >> b;
+  C << a * b;
+}
+`
+
+var filesProb *Problem = &Problem{
+   Title: "Simple One with Files",
+   Solution: Code{Lang: "c++", Text: sumABFiles},
+   Tests: []Tester{
+		&FilesTester{
+		   InputFiles: []FileInfo{
+				FileInfo{RelPath: "A", Contents: []byte("13")},
+				FileInfo{RelPath: "B", Contents: []byte("17")},
+			},
+		   OutputFiles: []FileInfo{
+				FileInfo{RelPath: "C"},
+			},
+		},
+	},
+}
+
+func TestFileTester(t *testing.T) {
+	var Res *Result
+	// Good
+	sub1 := Submission{
+	   Problem: filesProb, 
+	   Accused: Code{Lang: "c++", Text: sumABFiles},
+	}
+	Res = Evaluator.Submit(sub1)
+	if Res.Results[0].Veredict != "Accept" {
+		t.Errorf("Test should be accepted")
+	}
+	// Creates a file named 'D' instead of 'C'
+	sub2 := Submission{
+	   Problem: filesProb, 
+	   Accused: Code{Lang: "c++", Text: wrongFiles1},
+	}
+	Res = Evaluator.Submit(sub2)
+	if Res.Results[0].Veredict != "Forbidden Syscall [open(\"D\")]" {
+		t.Errorf("Wrong Veredict")
+	}
+	// Doesn't compute sum
+	sub3 := Submission{
+	   Problem: filesProb, 
+	   Accused: Code{Lang: "c++", Text: wrongAnswer1},
+	}
+	Res = Evaluator.Submit(sub3)
+	if Res.Results[0].Veredict != "Wrong Answer" {
+		t.Errorf("Wrong Veredict ('%s')", Res.Results[0].Veredict)
+	}
+}
