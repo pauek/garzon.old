@@ -7,12 +7,10 @@ import (
 )
 
 func init() {
-	db.Register("prog.Problem", Problem{})
+	db.Register("prog.Evaluator", Evaluator{})
 }
 
-type Problem struct {
-	Title    string
-	Solution Code
+type Evaluator struct {
 	Limits   Constraints
 	Tests    []db.Obj
 }
@@ -32,13 +30,7 @@ type Tester interface {
 	Veredict(*context) TestResult
 }
 
-type Submission struct {
-	Problem *Problem
-	Accused  Code
-}
-
-type Result struct {
-	Veredict string
+type VeredictDetails struct {
 	Results []TestResult
 }
 

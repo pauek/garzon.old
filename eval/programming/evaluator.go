@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"io/ioutil"
 
+	"garzon/db"
+	"garzon/eval"
 	"garzon/eval/programming/lang"
 )
 
@@ -31,17 +33,17 @@ func (C *context) Dir()     string { return C.dir }
 func (C *context) ExecDir() string { return C.dir + "/eval" }
 func (C *context) Mode()    string { return C.mode }
 
-func newContext(dir string, sub *Submission) *context {
+func newContext(dir string, model, accused Code, ev *Evaluator) *context {
 	C := new(context)
 	C.dir = dir
-	C.limits = sub.Problem.Limits
+	C.limits = ev.Limits
 	C.lang = map[string]string {
-		"model":   sub.Problem.Solution.Lang,
-		"accused": sub.Accused.Lang,
+		"model":   model.Lang,
+		"accused": accused.Lang,
 	}
 	C.code = map[string]string {
-		"model":   sub.Problem.Solution.Text,
-		"accused": sub.Accused.Text,
+		"model":   model.Text,
+		"accused": accused.Text,
 	}
 	return C
 }
@@ -119,42 +121,38 @@ func (C *context) Destroy() error {
 	return nil
 }
 
-// ProgramEvaluator //////////////////////////////////////////////////
-	
-var Evaluator *ProgramEvaluator
+// Evaluator //////////////////////////////////////////////////
 
-type ProgramEvaluator struct {
-	BaseDir string
-	KeepFiles bool
-}
+var BaseDir string
+var KeepFiles bool
 
 func init() {
-	Evaluator = &ProgramEvaluator{
-      BaseDir: os.Getenv("HOME"),
-	   KeepFiles: false,
-	}
+   BaseDir   = os.Getenv("HOME")
+	KeepFiles = false
 }
 
-func (E *ProgramEvaluator) Submit(sub Submission) (R *Result) {
-	C, err := E.prepareContext(sub)
+func (E *Evaluator) Evaluate(P *eval.Problem, Solution string) eval.Veredict {
+	// FIXME: get lang from string
+	C, err := E.prepareContext(P, Code{Text: Solution, Lang:"c++"}) 
 	if err != nil {
-		return &Result{Veredict: fmt.Sprintf("%s\n", err)}
+		return eval.Veredict{Message: fmt.Sprintf("%s\n", err)}
 	}
-	numTests := len(sub.Problem.Tests)
-	R = &Result{Results: make([]TestResult, numTests)}
-	for i, dbobj := range sub.Problem.Tests {
+	results := make([]TestResult, len(E.Tests))
+	for i, dbobj := range E.Tests {
 		tester := dbobj.Inner.(Tester)
-		E.runTest(C, tester, &R.Results[i])
+		E.runTest(C, tester, &results[i])
 	}
-	if !E.KeepFiles {
+	if !KeepFiles {
 		C.Destroy()
 	}
-	return
+	return eval.Veredict{Message: "Accept", Details: db.Obj{results}}
 }
 
-func (E *ProgramEvaluator) prepareContext(sub Submission) (C *context, err error) {
-	id  := hash(sub.Accused.Text)
-	C = newContext(E.BaseDir + "/" + id, &sub)
+func (E *Evaluator) prepareContext(P *eval.Problem, accused Code) (C *context, err error) {
+	id  := hash(accused.Text)
+	// FIXME: Get Lang from the string itself
+	model := Code{Text: P.Solution, Lang: "c++"}
+	C = newContext(BaseDir + "/" + id, model, accused, E)
 	if err := C.CreateDirectory(); err != nil { 
 		return nil, err 
 	}
@@ -167,7 +165,7 @@ func (E *ProgramEvaluator) prepareContext(sub Submission) (C *context, err error
 	return C, nil
 }
 
-func (E *ProgramEvaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
+func (E *Evaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
 	runtest := func (whom string) bool {
 		if err = C.SwitchTo(whom); err != nil { 
 			return false 

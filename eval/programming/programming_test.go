@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"garzon/db"
+	"garzon/eval"
 )	
 
 var ID string
@@ -22,33 +23,40 @@ func init() {
 	if err := os.Mkdir(dir, 0700); err != nil {
 		log.Fatal("init: Cannot create dir '%s'", dir)
 	}
-	Evaluator.BaseDir = dir
+	BaseDir = dir
 }
 
 var keepDir bool
 
-func evalWithInputs(model, accused string, I []string) (R *Result) {
-	prob := &Problem{
-	   Title: "Doesn't matter...",
-      Solution: Code{Lang: "c++", Text: model},
-      Tests: make([]db.Obj, len(I)),
-	}
-	sub := Submission{
-	   Problem: prob, 
-	   Accused: Code{Lang: "c++", Text: accused},
+func evalWithInputs(model, accused string, I []string) eval.Veredict {
+	ev := &Evaluator{
+		Tests: make([]db.Obj, len(I)),
 	}
 	for i, input := range I {
-		prob.Tests[i] = db.Obj{&InputTester{Input: input}}
+		ev.Tests[i] = db.Obj{&InputTester{Input: input}}
 	}
-	return Evaluator.Submit(sub)
+	prob := &eval.Problem{
+	   Title: "Doesn't matter...",
+      Solution: model, // FIXME: Code{Lang: "c++", Text: model},
+		Evaluator: db.Obj{ev},
+	}
+	return ev.Evaluate(prob, accused)
 }
 
 const Minimal = `int main() {}`
 var OneEmptyInput = []string{""}
 
+func results(V eval.Veredict) []TestResult {
+	return V.Details.Inner.([]TestResult)
+}
+
+func firstRes(V eval.Veredict) string {
+	return results(V)[0].Veredict
+}
+
 func TestMinimal(t *testing.T) {
-	R := evalWithInputs(Minimal, Minimal, OneEmptyInput)
-	if R.Results[0].Veredict != "Accept" {
+	V := evalWithInputs(Minimal, Minimal, OneEmptyInput)
+	if V.Details.Inner.([]TestResult)[0].Veredict != "Accept" {
 		t.Fail()
 	}
 }
@@ -59,8 +67,8 @@ int main() { std::cout << "%s" << std::endl; }`
 func TestDifferentOutput(t *testing.T) {
 	model   := fmt.Sprintf(PrintX, "A");
 	accused := fmt.Sprintf(PrintX, "B");
-	R := evalWithInputs(model, accused, OneEmptyInput)
-	if R.Results[0].Veredict != "Wrong Answer" {
+	V := evalWithInputs(model, accused, OneEmptyInput)
+	if firstRes(V) != "Wrong Answer" {
 		t.Fail()
 	}
 }
@@ -68,16 +76,16 @@ func TestDifferentOutput(t *testing.T) {
 const Wrong = `int main{}`
 
 func TestModelDoesntCompile(t *testing.T) {
-	R := evalWithInputs(Wrong, Minimal, OneEmptyInput)
-	errmsg := fmt.Sprintf("%s", R.Veredict)
+	V := evalWithInputs(Wrong, Minimal, OneEmptyInput)
+	errmsg := fmt.Sprintf("%s", V.Message)
 	if ! strings.HasPrefix(errmsg, "Error compiling 'model':") {
 		t.Errorf("Error is not \"Error compiling 'model'\" (is \"%s\")", errmsg)
 	}
 }
 
 func TestAccusedDoesntCompile(t *testing.T) {
-	R := evalWithInputs(Minimal, Wrong, OneEmptyInput)
-	errmsg := fmt.Sprintf("%s", R.Veredict)
+	V := evalWithInputs(Minimal, Wrong, OneEmptyInput)
+	errmsg := fmt.Sprintf("%s", V.Message)
 	if ! strings.HasPrefix(errmsg, "Error compiling 'accused':") {
 		t.Errorf("Error is not \"Error compiling 'accused'\" (is \"%s\")", errmsg)
 	}
@@ -94,8 +102,8 @@ int main() {
 
 func TestSumAB(t *testing.T) {
 	inputs := []string{"2 3\n", "4\n5", "1000 2000\n", "500000000 500000000\n"}
-	Res := evalWithInputs(SumAB, SumAB, inputs)
-	for i, r := range Res.Results {
+	V := evalWithInputs(SumAB, SumAB, inputs)
+	for i, r := range V.Details.Inner.([]TestResult) {
 		if r.Veredict != "Accept" {
 			inp := strings.Replace(inputs[i], "\n", `\n`, -1)
 			t.Errorf("Failed test '%s'\n", inp)
@@ -110,8 +118,8 @@ int main() { int a; std::cin >> a; std::cout << (a == 3 ? -1 : a); }`
 
 func TestEcho(t *testing.T) {
 	inputs := []string{"0", "1", "2", "3", "4", "5"}
-	Res := evalWithInputs(Echo, EchoX, inputs)
-	for i, r := range Res.Results {
+	V := evalWithInputs(Echo, EchoX, inputs)
+	for i, r := range results(V) {
 		if i == 3 {
 			if r.Veredict != "Wrong Answer" {
 				t.Errorf("Veredict should be \"Wrong Answer\" (test %d)", i)
@@ -125,8 +133,8 @@ func TestEcho(t *testing.T) {
 }
 
 func testExecutionError(t *testing.T, model, accused string, expected string) {
-	R := evalWithInputs(model, accused, OneEmptyInput)
-	R0 := R.Results[0].Veredict
+	V := evalWithInputs(model, accused, OneEmptyInput)
+	R0 := firstRes(V)
 	found, err := regexp.MatchString(expected, R0)
 	if err != nil {
 		t.Errorf(`Error matching regexp "%s" against "%s"`, expected, R0)
@@ -241,52 +249,44 @@ int main() {
 }
 `
 
-var filesProb *Problem = &Problem{
-   Title: "Simple One with Files",
-   Solution: Code{Lang: "c++", Text: sumABFiles},
+var filesEv *Evaluator = &Evaluator{
    Tests: []db.Obj{
-		db.Obj{&FilesTester{
-		   InputFiles: []FileInfo{
-				FileInfo{RelPath: "A", Contents: "13"},
-				FileInfo{RelPath: "B", Contents: "17"},
-			},
-		   OutputFiles: []FileInfo{
-				FileInfo{RelPath: "C"},
-			},
+		{&FilesTester{
+			InputFiles: []FileInfo{
+					FileInfo{RelPath: "A", Contents: "13"},
+					FileInfo{RelPath: "B", Contents: "17"},
+				},
+			OutputFiles: []FileInfo{
+					FileInfo{RelPath: "C"},
+				},
 		}},
 	},
 }
 
+var filesProb *eval.Problem = &eval.Problem{
+   Title: "Simple One with Files",
+   Solution: sumABFiles, // FIXME: Code{Lang: "c++", Text: sumABFiles},
+   Evaluator: db.Obj{filesEv},
+}
+
 func TestFileTester(t *testing.T) {
-	var Res *Result
+	var V eval.Veredict
 
 	// Good
-	sub1 := Submission{
-	   Problem: filesProb, 
-	   Accused: Code{Lang: "c++", Text: sumABFiles},
-	}
-	Res = Evaluator.Submit(sub1)
-	if Res.Results[0].Veredict != "Accept" {
+	V = filesEv.Evaluate(filesProb, sumABFiles)
+	if firstRes(V) != "Accept" {
 		t.Errorf("Test should be accepted")
 	}
 
 	// Creates a file named 'D' instead of 'C'
-	sub2 := Submission{
-	   Problem: filesProb, 
-	   Accused: Code{Lang: "c++", Text: wrongFiles1},
-	}
-	Res = Evaluator.Submit(sub2)
-	if Res.Results[0].Veredict != "Forbidden Syscall [open(\"D\")]" {
+	V = filesEv.Evaluate(filesProb, wrongFiles1)
+	if firstRes(V) != "Forbidden Syscall [open(\"D\")]" {
 		t.Errorf("Wrong Veredict")
 	}
 
 	// Doesn't compute sum
-	sub3 := Submission{
-	   Problem: filesProb, 
-	   Accused: Code{Lang: "c++", Text: wrongAnswer1},
-	}
-	Res = Evaluator.Submit(sub3)
-	if Res.Results[0].Veredict != "Wrong Answer" {
-		t.Errorf("Wrong Veredict ('%s')", Res.Results[0].Veredict)
+	V = filesEv.Evaluate(filesProb, wrongAnswer1)
+	if res := firstRes(V); res != "Wrong Answer" {
+		t.Errorf("Wrong Veredict ('%s')", res)
 	}
 }

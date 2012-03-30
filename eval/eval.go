@@ -2,15 +2,43 @@
 package eval
 
 import (
-	"garzon/eval/programming"
+	"net/rpc"
+	"garzon/db"
 )
 
-// useful?
+type Submission struct {
+	Problem *Problem
+	Solution string
+}
 
-var ProgramEvaluator *programming.ProgramEvaluator
+type Problem struct {
+	Title string
+	StatementID string
+	Solution string
+	Evaluator db.Obj
+}
 
+type Veredict struct {
+	Message string
+	Details db.Obj
+}
+
+type Evaluator interface {
+	Evaluate(Problem *Problem, Solution string) Veredict
+}
+
+type Eval bool
+
+func (E *Eval) Submit(S Submission, V *Veredict) error {
+	ev := S.Problem.Evaluator.Inner.(Evaluator)
+	*V = ev.Evaluate(S.Problem, S.Solution)
+	return nil
+}
+
+// RPC
 func init() {
-	ProgramEvaluator = programming.Evaluator
+	db.Register("eval.Problem", Problem{})
+	rpc.Register(new(Eval))
 }
 
 
