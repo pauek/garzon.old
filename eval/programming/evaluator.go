@@ -139,7 +139,7 @@ func (E *Evaluator) Evaluate(P *eval.Problem, Solution string) eval.Veredict {
 	}
 	results := make([]TestResult, len(E.Tests))
 	for i, dbobj := range E.Tests {
-		tester := dbobj.Inner.(Tester)
+		tester := dbobj.Obj.(Tester)
 		E.runTest(C, tester, &results[i])
 	}
 	if !KeepFiles {

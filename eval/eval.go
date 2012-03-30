@@ -12,9 +12,7 @@ type Submission struct {
 }
 
 type Problem struct {
-	Title string
-	StatementID string
-	Solution string
+	Title, StatementID, Solution string
 	Evaluator db.Obj
 }
 
@@ -30,7 +28,7 @@ type Evaluator interface {
 type Eval bool
 
 func (E *Eval) Submit(S Submission, V *Veredict) error {
-	ev := S.Problem.Evaluator.Inner.(Evaluator)
+	ev := S.Problem.Evaluator.Obj.(Evaluator)
 	*V = ev.Evaluate(S.Problem, S.Solution)
 	return nil
 }

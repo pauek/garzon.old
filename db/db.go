@@ -20,7 +20,7 @@
    "decorated" (enclosed) in an object of type db.Obj.
 
  - The type db.Obj has special MarshalJSON and UnmarshalJSON methods
-   that take care of the "Inner" object. These methods write a field
+   that take care of the "Obj" object. These methods write a field
    in the JSON data with the type of the object ("-type").
 
  - Every type that the database needs to care about has to be
@@ -62,7 +62,7 @@ func NewUUID() string {
 // Database Object
 
 type Obj struct {
-	Inner interface{}
+	Obj interface{}
 }
 
 func marshal(v interface{}, preamble map[string]string) ([]byte, error) {
@@ -82,7 +82,7 @@ func marshal(v interface{}, preamble map[string]string) ([]byte, error) {
 }
 
 func (obj *Obj) MarshalJSON() ([]byte, error) {
-	return marshal(obj.Inner, map[string]string{ "-type": findAlias(obj.Inner) })
+	return marshal(obj.Obj, map[string]string{ "-type": findAlias(obj.Obj) })
 }
 
 func (obj *Obj) UnmarshalJSON(data []byte) (err error) {
@@ -94,10 +94,10 @@ func (obj *Obj) UnmarshalJSON(data []byte) (err error) {
 		return 
 	}
 	typ := findType(t.Alias)
-	obj.Inner = reflect.New(typ).Interface()
-	if err = json.Unmarshal(data, obj.Inner); err != nil {
-		obj.Inner = nil
-		err = fmt.Errorf("Inner json.Unmarshal error: %s\n", err)
+	obj.Obj = reflect.New(typ).Interface()
+	if err = json.Unmarshal(data, obj.Obj); err != nil {
+		obj.Obj = nil
+		err = fmt.Errorf("Obj json.Unmarshal error: %s\n", err)
 	}
 	return
 }
@@ -223,7 +223,7 @@ func (D *Database) Get(id string) (v interface{}, rev string, err error) {
 		err = fmt.Errorf("Get: json.Unmarshal error: %s\n", err)
 		return 
 	}
-	v = obj.Inner
+	v = obj.Obj
 	rev = resp.Header.Get("Etag")
 	return 
 }

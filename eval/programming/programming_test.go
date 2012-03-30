@@ -47,7 +47,7 @@ const Minimal = `int main() {}`
 var OneEmptyInput = []string{""}
 
 func results(V eval.Veredict) []TestResult {
-	return V.Details.Inner.([]TestResult)
+	return V.Details.Obj.([]TestResult)
 }
 
 func firstRes(V eval.Veredict) string {
@@ -56,7 +56,7 @@ func firstRes(V eval.Veredict) string {
 
 func TestMinimal(t *testing.T) {
 	V := evalWithInputs(Minimal, Minimal, OneEmptyInput)
-	if V.Details.Inner.([]TestResult)[0].Veredict != "Accept" {
+	if V.Details.Obj.([]TestResult)[0].Veredict != "Accept" {
 		t.Fail()
 	}
 }
@@ -103,7 +103,7 @@ int main() {
 func TestSumAB(t *testing.T) {
 	inputs := []string{"2 3\n", "4\n5", "1000 2000\n", "500000000 500000000\n"}
 	V := evalWithInputs(SumAB, SumAB, inputs)
-	for i, r := range V.Details.Inner.([]TestResult) {
+	for i, r := range V.Details.Obj.([]TestResult) {
 		if r.Veredict != "Accept" {
 			inp := strings.Replace(inputs[i], "\n", `\n`, -1)
 			t.Errorf("Failed test '%s'\n", inp)
