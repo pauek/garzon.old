@@ -6,10 +6,6 @@ import (
 	"garzon/db"
 )
 
-func init() {
-	db.Register("prog.Evaluator", Evaluator{})
-}
-
 type Evaluator struct {
 	Limits   Constraints
 	Tests    []db.Obj

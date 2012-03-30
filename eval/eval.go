@@ -2,7 +2,6 @@
 package eval
 
 import (
-	"net/rpc"
 	"garzon/db"
 )
 
@@ -36,7 +35,6 @@ func (E *Eval) Submit(S Submission, V *Veredict) error {
 // RPC
 func init() {
 	db.Register("eval.Problem", Problem{})
-	rpc.Register(new(Eval))
 }
 
 

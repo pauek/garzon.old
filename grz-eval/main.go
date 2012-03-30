@@ -2,6 +2,7 @@
 package main
 
 import (
+	"os"
 	"fmt"
 	"flag"
 	"log"
@@ -9,15 +10,27 @@ import (
 	"net/rpc"
 	"net/http"
 	
-	"garzon/eval/program"
+	"garzon/eval"
+	"garzon/eval/programming"
 )
 
 func init() {
-	rpc.Register(program.Evaluator)
+	rpc.Register(new(eval.Eval))
+	programming.Register()
 }
 
+const usage = `usage: grz-eval [options...]
+
+Options:
+	-p <port>,   Port to listen on (50000)
+
+`
+
 func main() {
-	port := flag.Int("port", 15001, "Port")
+	flag.Usage = func () {
+		fmt.Fprintf(os.Stderr, usage)
+	}
+	port := flag.Int("p", 50000, "Port")
 	flag.Parse()
 
 	rpc.HandleHTTP()

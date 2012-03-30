@@ -9,16 +9,9 @@ import (
 	"log"
 	"bytes"
 	"strings"
-
-	"garzon/db"
 )
 
 // InputTester
-
-func init() {
-	db.Register("prog.test.Input", InputTester{})
-	db.Register("prog.test.Files", FilesTester{})
-}
 
 // An InputTester tests a program by feeding it some input and
 // checking that the output is the same as the model's output.
