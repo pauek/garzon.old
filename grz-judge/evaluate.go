@@ -71,8 +71,6 @@ func evaluate(A Account, done chan bool) {
 	if err := cmd.Start(); err != nil {
 		log.Fatalf("Couldn't run \"%s\" on account '%s': %s\n", cmdline, userhost, err)
 	}
-	defer cmd.Process.Kill()
-	
 	
 	// hack: wait for the ssh process
 	time.Sleep(time.Second)
@@ -94,5 +92,8 @@ func evaluate(A Account, done chan bool) {
 		log.Fatalf("Call failed: %s\n", err)
 	}
 	fmt.Printf("Result was %v\n", V)
+	client.Close()
+	cmd.Process.Kill()   // kill 'ssh'
+	killRemoteProcess(userhost)
 	done <- true
 }
