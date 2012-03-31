@@ -44,41 +44,45 @@ func killRemoteProcess(userhost string) {
 	exec.Command("ssh", userhost, "pkill -9 grz-eval").Run()
 }
 
-func prepare(A Account) {
-	userhost := fmt.Sprintf("%s@%s", A.user, A.host)
-
+func copyFiles(userhost string) {
 	grzjail := findLocation("grz-jail")
 	grzeval := findLocation("grz-eval")
-	killRemoteProcess(userhost)
 	copyToRemote(grzjail, userhost, ".")
 	copyToRemote(grzeval, userhost, ".")
-	
 }
 
 func evaluate(A Account, done chan bool) {
-	// copy files over
-	prepare(A)
-
 	userhost := fmt.Sprintf("%s@%s", A.user, A.host)
 
-	// Run grz-eval there
-	
-	log.Printf("Executing 'grz-eval' remotely\n")
-	cmdline := fmt.Sprintf("./grz-eval -p %d", remotePort)
-	cmd := exec.Command("ssh", userhost, cmdline)
 	var e bytes.Buffer
-	cmd.Stderr = &e
-	if err := cmd.Start(); err != nil {
-		log.Fatalf("Couldn't run \"%s\" on account '%s': %s\n", cmdline, userhost, err)
-	}
-	
-	// hack: wait for the ssh process
-	time.Sleep(time.Second)
+	var cmd *exec.Cmd
+	if true {
+		killRemoteProcess(userhost)
+
+		// copy files over
+		if copyfiles {
+			copyFiles(userhost)
+		}
+
+		// Run grz-eval there
+		log.Printf("Executing 'grz-eval' at '%s'\n", userhost)
+		cmdline := fmt.Sprintf("./grz-eval -p %d", remotePort)
+		redir   := fmt.Sprintf("localhost:%d:localhost:%d", A.port, remotePort)
+		cmd = exec.Command("ssh", "-L", redir, userhost, cmdline)
+		cmd.Stderr = &e
+		if err := cmd.Start(); err != nil {
+			log.Fatalf("Couldn't run \"%s\" on account '%s': %s\n", cmdline, userhost, err)
+		}
+		
+		// hack: wait for the ssh process
+		time.Sleep(5 * time.Second)
+	}	 
 
 	// Submission loop
 	log.Printf("Dialing RPC...\n")
 	client, err := rpc.DialHTTP("tcp", fmt.Sprintf("localhost:%d", A.port))
 	if err != nil {
+		log.Printf("%s\n", e.String())
 		log.Fatalf("Error dialing: %s\n", err)
 	}
 	log.Printf("Connected.\n")
@@ -93,7 +97,9 @@ func evaluate(A Account, done chan bool) {
 	}
 	fmt.Printf("Result was %v\n", V)
 	client.Close()
-	cmd.Process.Kill()   // kill 'ssh'
+	if cmd != nil {
+		cmd.Process.Kill()   // kill 'ssh'
+	}
 	killRemoteProcess(userhost)
 	done <- true
 }
