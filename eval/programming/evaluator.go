@@ -33,7 +33,7 @@ func (C *context) Dir()     string { return C.dir }
 func (C *context) ExecDir() string { return C.dir + "/eval" }
 func (C *context) Mode()    string { return C.mode }
 
-func newContext(dir string, model, accused Code, ev *Evaluator) *context {
+func newContext(dir string, model, accused Code, ev Evaluator) *context {
 	C := new(context)
 	C.dir = dir
 	C.limits = ev.Limits
@@ -108,7 +108,7 @@ func (C *context) MakeCommand() (cmd *exec.Cmd) {
 		args = append(args, "-a")
 	}
 	args = append(args, C.dir + "/eval")
-   cmd = exec.Command("grz-jail", args...)
+   cmd = exec.Command(os.Getenv("HOME") + "/grz-jail", args...)
 	cmd.Dir = C.ExecDir()
 	return
 }
@@ -131,7 +131,7 @@ func init() {
 	KeepFiles = false
 }
 
-func (E *Evaluator) Evaluate(P *eval.Problem, Solution string) eval.Veredict {
+func (E Evaluator) Evaluate(P *eval.Problem, Solution string) eval.Veredict {
 	// FIXME: get lang from string
 	C, err := E.prepareContext(P, Code{Text: Solution, Lang:"c++"}) 
 	if err != nil {
@@ -148,7 +148,7 @@ func (E *Evaluator) Evaluate(P *eval.Problem, Solution string) eval.Veredict {
 	return eval.Veredict{Message: "Accept", Details: db.Obj{results}}
 }
 
-func (E *Evaluator) prepareContext(P *eval.Problem, accused Code) (C *context, err error) {
+func (E Evaluator) prepareContext(P *eval.Problem, accused Code) (C *context, err error) {
 	id  := hash(accused.Text)
 	// FIXME: Get Lang from the string itself
 	model := Code{Text: P.Solution, Lang: "c++"}
@@ -165,7 +165,7 @@ func (E *Evaluator) prepareContext(P *eval.Problem, accused Code) (C *context, e
 	return C, nil
 }
 
-func (E *Evaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
+func (E Evaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
 	runtest := func (whom string) bool {
 		if err = C.SwitchTo(whom); err != nil { 
 			return false 
@@ -200,7 +200,8 @@ func (E *Evaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
 func getExitStatus(err error) int {
 	exiterror, ok := err.(*exec.ExitError)
 	if ! ok { 
-		log.Fatalf("Cannot get ProcessState") 
+		log.Printf("Cannot get ProcessState") 
+		log.Fatalf("Error was: %s\n", err)
 	}
 	status, ok := exiterror.Sys().(syscall.WaitStatus)
 	if ! ok { 

@@ -24,11 +24,11 @@ type InputTesterState struct {
 	modelOut, accusedOut bytes.Buffer
 }
 
-func (I *InputTester) Prepare(C *context) {
+func (I InputTester) Prepare(C *context) {
 	C.State = new(InputTesterState)
 }
 
-func (I *InputTester) SetUp(C *context, cmd *exec.Cmd) error {
+func (I InputTester) SetUp(C *context, cmd *exec.Cmd) error {
 	log.Printf("Testing input '%s'\n", prefix(I.Input, 20))
 	cmd.Stdin  = strings.NewReader(I.Input)
 	state := C.State.(*InputTesterState)
@@ -43,11 +43,11 @@ func (I *InputTester) SetUp(C *context, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (I *InputTester) CleanUp(*context) error {
+func (I InputTester) CleanUp(*context) error {
 	return nil
 }
 
-func (I *InputTester) Veredict(C *context) TestResult {
+func (I InputTester) Veredict(C *context) TestResult {
 	state := C.State.(*InputTesterState)
 	if state.modelOut.String() == state.accusedOut.String() {
 		return TestResult{Veredict: "Accept"}
@@ -74,7 +74,7 @@ type FileTesterState struct {
 	modelOutFiles, accusedOutFiles [][]byte
 }
 
-func (I *FilesTester) Prepare(C *context) {
+func (I FilesTester) Prepare(C *context) {
 	state := new(FileTesterState)
 	n := len(I.OutputFiles)
 	state.modelOutFiles   = make([][]byte, n)
@@ -82,7 +82,7 @@ func (I *FilesTester) Prepare(C *context) {
 	C.State = state
 }
 
-func (I *FilesTester) SetUp(C *context, cmd *exec.Cmd) error {
+func (I FilesTester) SetUp(C *context, cmd *exec.Cmd) error {
 	log.Printf("Testing Files '%s'\n", C.Mode())
 	state := C.State.(*FileTesterState)
 	switch (C.Mode()) {
@@ -107,7 +107,7 @@ func fileExists(path string) bool {
 	return err == nil // ??
 }
 
-func (I *FilesTester) CleanUp(C *context) (err error) {
+func (I FilesTester) CleanUp(C *context) (err error) {
 	state := C.State.(*FileTesterState)
 	// Erase input files
 	for _, finfo := range I.InputFiles {
@@ -151,7 +151,7 @@ func equalBytes(a, b []byte) bool {
 	return true
 }
 
-func (I *FilesTester) Veredict(C *context) TestResult {
+func (I FilesTester) Veredict(C *context) TestResult {
 	state := C.State.(*FileTesterState)
 	n := len(I.OutputFiles)
 	for i := 0; i < n; i++ {

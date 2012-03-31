@@ -2,6 +2,8 @@
 package eval
 
 import (
+	"log"
+	"encoding/gob"
 	"garzon/db"
 )
 
@@ -27,14 +29,19 @@ type Evaluator interface {
 type Eval bool
 
 func (E *Eval) Submit(S Submission, V *Veredict) error {
+	log.Printf("Received Problem: %+v\n", S.Problem)
 	ev := S.Problem.Evaluator.Obj.(Evaluator)
 	*V = ev.Evaluate(S.Problem, S.Solution)
+	log.Printf("Result: %+v\n", V)
 	return nil
 }
 
 // RPC
 func init() {
 	db.Register("eval.Problem", Problem{})
+	gob.Register(Problem{})
+	gob.Register(Veredict{})
+	gob.Register(Submission{})
 }
 
 

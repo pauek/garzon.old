@@ -38,6 +38,7 @@ import (
 	"reflect"
 	"io/ioutil"
 	"encoding/json"
+	"encoding/gob"
 	"math/rand"
 )
 
@@ -63,6 +64,10 @@ func NewUUID() string {
 
 type Obj struct {
 	Obj interface{}
+}
+
+func init() {
+	gob.Register(Obj{})
 }
 
 func marshal(v interface{}, preamble map[string]string) ([]byte, error) {

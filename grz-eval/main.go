@@ -9,14 +9,14 @@ import (
 	"net"
 	"net/rpc"
 	"net/http"
-	
+
 	"garzon/eval"
-	"garzon/eval/programming"
+	prog "garzon/eval/programming"
 )
 
 func init() {
 	rpc.Register(new(eval.Eval))
-	programming.Register()
+	prog.Register()
 }
 
 const usage = `usage: grz-eval [options...]
@@ -38,5 +38,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Listen error:", err)
 	}
+	log.Printf("grz-eval: starting server\n")
 	http.Serve(L, nil)
 }
