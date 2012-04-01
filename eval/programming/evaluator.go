@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"syscall"
 	"io/ioutil"
+	"path/filepath"
 
 	"garzon/db"
 	"garzon/eval"
@@ -208,4 +209,62 @@ func getExitStatus(err error) int {
 		log.Fatalf("Cannot get syscall.WaitStatus") 
 	}
 	return status.ExitStatus()
+}
+
+// ReadFrom reads an evaluator from a directory. It reads a text file
+// with name 'solution.*', with extension depending on the programming
+// language. Then reads all files 'test.N.<type>', where N is an integer
+// using a polymorphic method 'ReadFrom' for each tester.
+//
+func (E *Evaluator) ReadFrom(dir string, prob *eval.Problem) error {
+	// Read solution
+	matches, err := filepath.Glob(dir + "/solution.*")
+	if err != nil {
+		return fmt.Errorf("Cannot look for 'solution.*': %s\n")
+	}
+	
+	var sol string
+	for i, m := range matches {
+		if i == 0 {
+			sol = m
+		} else {
+			fmt.Fprintf(os.Stderr, "Warning: ignoring solution '%s'\n", m)
+		}
+	}
+
+	// TODO: Handle more programming languages
+	solstr, err := ioutil.ReadFile(sol)
+	if err != nil {
+		return fmt.Errorf("Cannot read file '%s': %s\n", sol, err)
+	}
+	prob.Solution = fmt.Sprintf("c++\n%s", solstr)
+	
+	// path/filepath.glob: "New matches are added in 
+	//   lexicographical order" (we use that for now)
+	matches, err = filepath.Glob(dir + "/test.*.*")
+	if err != nil {
+		return fmt.Errorf("Cannot look for 'test.*': %s\n")
+	}
+	E.Tests = []db.Obj{}
+	for _, m := range matches {
+		typ := getType(m)
+		obj := db.ObjFromType("prog.test." + typ)
+		tester, ok := obj.(Tester)
+		if ! ok {
+			return fmt.Errorf("Type '%s' is not a programming.Tester", typ)
+		}
+		if err := tester.ReadFrom(m); err != nil {
+			return fmt.Errorf("Couldn't read test '%s': %s\n", m, err)
+		}
+		E.Tests = append(E.Tests, db.Obj{tester})
+	}
+	return nil
+}
+
+func getType(path string) string {
+	i := strings.LastIndex(path, ".")
+	if i == -1 {
+		panic("Assumed I would find '.' in path")
+	}
+	return path[i+1:]
 }

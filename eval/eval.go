@@ -24,6 +24,7 @@ type Veredict struct {
 
 type Evaluator interface {
 	Evaluate(Problem *Problem, Solution string) Veredict
+	ReadFrom(dir string, Problem *Problem) error
 }
 
 type Eval bool

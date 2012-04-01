@@ -24,6 +24,7 @@ type Tester interface {
 	SetUp(*context, *exec.Cmd) error
 	CleanUp(*context) error
 	Veredict(*context) TestResult
+	ReadFrom(path string) error
 }
 
 type VeredictDetails struct {

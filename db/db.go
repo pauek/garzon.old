@@ -31,12 +31,13 @@
 package db
 
 import (
-	"net/http"
-	"bytes"
 	"fmt"
 	"log"
+	"bytes"
+	"strings"
 	"reflect"
 	"io/ioutil"
+	"net/http"
 	"encoding/json"
 	"encoding/gob"
 	"math/rand"
@@ -151,6 +152,16 @@ func findType(alias string) reflect.Type {
 	return mustFindTypeInfo(typename).Typ
 }
 
+// Create an object from a registered type by alias
+func ObjFromType(alias string) interface{} {
+	typename, ok := aliasMap[alias]
+	if ! ok { return nil }
+	typ, ok := typeMap[typename]
+	if ! ok { return nil }
+	return reflect.New(typ.Typ).Interface()
+}
+
+// Register a database object by alias
 func Register(alias string, v interface{}) {
 	typ := reflect.TypeOf(v)
 	if typ.Kind() == reflect.Ptr {
@@ -198,6 +209,7 @@ func (D *Database) Rev(id string) (rev string, err error) {
 	if rev == "" {
 		err = fmt.Errorf("Rev: Header 'Etag' not found\n")
 	}
+	rev = strings.Replace(rev, `"`, ``, -1)
 	return
 }
 
@@ -239,6 +251,17 @@ func (D *Database) Put(id string, v interface{}) error {
 
 func (D *Database) Update(id, rev string, v interface{}) error {
 	return D.put(id, rev, &Obj{v})
+}
+
+func (D *Database) PutOrUpdate(id string, v interface{}) error {
+	rev, err := D.Rev(id)
+	if err != nil {
+		return fmt.Errorf("PutOrUpdate: %s\n", err)
+	}
+	if rev == "" {
+		return D.Put(id, v) 
+	} 
+	return D.Update(id, rev, v)
 }
 
 func (D *Database) put(id, rev string, v interface{}) error {
