@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"flag"
 	"strings"
+	"io/ioutil"
+
 	"garzon/db"
 	"garzon/eval"
 	prog "garzon/eval/programming"
@@ -77,6 +79,8 @@ func splitType(dir string) (base, typ string) {
 }
 
 func readProblem(dir string) (id string, Problem *eval.Problem) {
+	// TODO: Read statement
+
 	// Change to absolute path
 	absdir := dir
 	cwd, err := os.Getwd()
@@ -129,7 +133,13 @@ func readProblem(dir string) (id string, Problem *eval.Problem) {
 		_err(`Type '%s.Evaluator' not found`, typ)
 	}
 
-	Problem = &eval.Problem{Title: id, StatementID: ""}
+	// Read Title
+	title, err := ioutil.ReadFile(absdir + "/title")
+	if err != nil {
+		_err("Cannot read title")
+	}
+
+	Problem = &eval.Problem{Title: string(title), StatementID: ""}
 
 	// Read directory
 	E, ok := ev.(eval.Evaluator)
