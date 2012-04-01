@@ -64,7 +64,7 @@ func _err(format string, args ...interface{}) {
 func splitType(dir string) (base, typ string) {
 	dot := strings.Index(dir, ".")
 	if dot == -1 {
-		_err(`Directory should end with ".<type>"`, dir)
+		_err(`Directory should end with ".<type>"`)
 	}
 	return dir[:dot], dir[dot+1:]
 }

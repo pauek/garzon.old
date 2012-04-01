@@ -9,6 +9,7 @@ import (
 	"log"
 	"bytes"
 	"strings"
+	"path/filepath"
 )
 
 // InputTester
@@ -163,6 +164,7 @@ func equalBytes(a, b []byte) bool {
 func (I FilesTester) Veredict(C *context) TestResult {
 	state := C.State.(*FileTesterState)
 	n := len(I.OutputFiles)
+	// TODO: Compare with content in I.OutputFiles[i].Content!
 	for i := 0; i < n; i++ {
 		a := state.modelOutFiles[i]
 		b := state.accusedOutFiles[i]
@@ -173,4 +175,32 @@ func (I FilesTester) Veredict(C *context) TestResult {
 	return TestResult{Veredict: "Accept"}
 }
 
-// TODO: func (I *FilesTester) ReadFrom(path string) error { ... }
+func (I *FilesTester) ReadFrom(path string) (err error) {
+	I.InputFiles,  err = readFiles(path, "in")
+	if err != nil { return err }
+	I.OutputFiles, err = readFiles(path, "out")
+	if err != nil { return err }
+	return nil
+}
+
+func readFiles(path, ext string) (Files []FileInfo, err error) {
+	matches, err := filepath.Glob(path + "/*." + ext)
+	if err != nil {
+		err = fmt.Errorf("readFiles: cannot glob '*.%s': %s\n", ext, err)
+		return
+	}
+	Files = make([]FileInfo, len(matches))
+	for i, m := range matches {
+		p1 := len(path) + 1
+		p2 := strings.LastIndex(m, ext) - 1
+		relpath := m[p1:p2]
+		var contents []byte
+		contents, err = ioutil.ReadFile(m)
+		if err != nil {
+			err = fmt.Errorf("readFiles: Cannot read '%s': %s\n", m, err)
+			return
+		}
+		Files[i] = FileInfo{RelPath: relpath, Contents: string(contents)}
+	}
+	return
+}
