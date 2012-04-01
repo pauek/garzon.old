@@ -24,6 +24,7 @@ func init() {
 		log.Fatal("init: Cannot create dir '%s'", dir)
 	}
 	BaseDir = dir
+	Register()
 }
 
 var keepDir bool

@@ -249,7 +249,7 @@ func (E *Evaluator) ReadFrom(dir string, prob *eval.Problem) error {
 	for _, m := range matches {
 		typ := getType(m)
 		obj := db.ObjFromType("prog.test." + typ)
-		tester, ok := obj.(Tester)
+		tester, ok := obj.(Readable)
 		if ! ok {
 			return fmt.Errorf("Type '%s' is not a programming.Tester", typ)
 		}

@@ -24,6 +24,9 @@ type Tester interface {
 	SetUp(*context, *exec.Cmd) error
 	CleanUp(*context) error
 	Veredict(*context) TestResult
+}
+
+type Readable interface {
 	ReadFrom(path string) error
 }
 
