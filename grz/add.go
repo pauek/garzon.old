@@ -79,8 +79,6 @@ func splitType(dir string) (base, typ string) {
 }
 
 func readProblem(dir string) (id string, Problem *eval.Problem) {
-	// TODO: Read statement
-
 	// Change to absolute path
 	absdir := dir
 	cwd, err := os.Getwd()
@@ -139,7 +137,12 @@ func readProblem(dir string) (id string, Problem *eval.Problem) {
 		_err("Cannot read title")
 	}
 
-	Problem = &eval.Problem{Title: string(title), StatementID: ""}
+	// TODO: Read statement
+
+	Problem = &eval.Problem{
+		Title: string(title), 
+		StatementID: "",
+	}
 
 	// Read directory
 	E, ok := ev.(eval.Evaluator)
