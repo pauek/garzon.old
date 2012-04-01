@@ -21,13 +21,14 @@ var commands map[string]*Command
 
 func init() {
 	commands = make(map[string]*Command)
-	commands["add"] = &addCommand
+	commands["add"]    = &addCommand
+	commands["update"] = &updateCommand
 }
 
 func usage(exitcode int) {
 	fmt.Fprint(os.Stderr, _usage_header)
 	for id, cmd := range commands {
-		fmt.Fprintf(os.Stderr, "  %s\t%s\n", id, cmd.help)
+		fmt.Fprintf(os.Stderr, "  %-10s%s\n", id, cmd.help)
 	}
 	fmt.Fprint(os.Stderr, _usage_footer)
 	os.Exit(exitcode)

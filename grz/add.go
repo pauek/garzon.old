@@ -17,7 +17,20 @@ var addCommand Command = Command{
 	function: add,
 }
 
-const _addUsage = `usage: git add [options] <ProblemID>
+var updateCommand Command = Command{
+	help: `Update a problem in the Database`,
+	usage: _updateUsage,
+	function: update,
+}
+
+const _addUsage = `usage: git add [options] <directory>
+
+Options:
+  --path    Colon-separated list of directories to consider 
+            as roots
+
+`
+const _updateUsage = `usage: git update [options] <directory>
 
 Options:
   --path    Colon-separated list of directories to consider 
@@ -31,7 +44,7 @@ func init() {
 	prog.Register()
 }
 
-func addParse(args []string) string {
+func addParseFlags(args []string) string {
 	fset := flag.NewFlagSet("add", flag.ExitOnError)
 	fset.StringVar(&addPath, "path", "", "Problem path (colon separated)")
 	fset.Parse(args)
@@ -41,7 +54,6 @@ func addParse(args []string) string {
 	}
 	
 	// TODO: Check that no path in 'addPath' is prefix of the others!
-
 	args = fset.Args()
 	if len(args) != 1 {
 		fmt.Fprint(os.Stderr, "Wrong number of arguments\n")
@@ -56,11 +68,6 @@ func addParse(args []string) string {
 	return dir
 }
 
-func _err(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format + "\n", args...)
-	os.Exit(1)
-}
-
 func splitType(dir string) (base, typ string) {
 	dot := strings.Index(dir, ".")
 	if dot == -1 {
@@ -69,10 +76,7 @@ func splitType(dir string) (base, typ string) {
 	return dir[:dot], dir[dot+1:]
 }
 
-func add(args []string) {
-	dir := addParse(args)
-	fmt.Printf("path: %v\n", splitPath(addPath))
-	
+func readProblem(dir string) (id string, Problem *eval.Problem) {
 	// Change to absolute path
 	absdir := dir
 	cwd, err := os.Getwd()
@@ -112,12 +116,12 @@ func add(args []string) {
 	base, typ := splitType(relative)
 
 	// Get ID
-	id := strings.Replace(base, "/", ".", -1)
+	id = strings.Replace(base, "/", ".", -1)
 	
-	fmt.Printf("abs:  %s\n", absdir)
-	fmt.Printf("dir:  %s\n", dir)
-	fmt.Printf("root: %s\n", root)
-	fmt.Printf("ID:   %s\n", id)
+	// fmt.Printf("abs:  %s\n", absdir)
+	// fmt.Printf("dir:  %s\n", dir)
+	// fmt.Printf("root: %s\n", root)
+	// fmt.Printf("ID:   %s\n", id)
 
 	// Lookup <type>.Evaluator
 	ev := db.ObjFromType(typ + ".Evaluator")
@@ -125,7 +129,7 @@ func add(args []string) {
 		_err(`Type '%s.Evaluator' not found`, typ)
 	}
 
-	Problem := &eval.Problem{Title: id, StatementID: ""}
+	Problem = &eval.Problem{Title: id, StatementID: ""}
 
 	// Read directory
 	E, ok := ev.(eval.Evaluator)
@@ -136,13 +140,43 @@ func add(args []string) {
 		_err("Coudln't read problem '%s': %s\n", id, err)
 	}
 	Problem.Evaluator = db.Obj{E}
+	return
+}
+
+func add(args []string) {
+	dir := addParseFlags(args)
+	
+	id, Problem := readProblem(dir)
 	
 	// Store in the database
 	db, err := db.GetOrCreate("localhost:5984", "problems")
 	if err != nil {
 		_err("Cannot access database (http://localhost:5984/problems)")
 	}
-	if err := db.PutOrUpdate(id, Problem); err != nil {
-		_err("Couldn't store in the database: %s\n", err)
+	rev, _ := db.Rev(id)
+	if rev != "" {
+		_err("Problem '%s' already in the database", id)
+	}
+	if err := db.Put(id, Problem); err != nil {
+		_err("Couldn't add: %s\n", err)
+	}
+}
+
+func update(args []string) {
+	dir := addParseFlags(args)
+	
+	id, Problem := readProblem(dir)
+	
+	// Store in the database
+	db, err := db.GetOrCreate("localhost:5984", "problems")
+	if err != nil {
+		_err("Cannot access database (http://localhost:5984/problems)")
+	}
+	rev, _ := db.Rev(id)
+	if rev == "" {
+		_err("Problem '%s' not found in the database", id)
+	}
+	if err := db.Update(id, rev, Problem); err != nil {
+		_err("Couldn't update: %s\n", err)
 	}
 }
