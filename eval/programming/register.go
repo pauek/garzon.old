@@ -17,6 +17,6 @@ func Register() {
 	gob.Register(FilesTester{})
 	gob.Register(VeredictDetails{})
 	gob.Register(TestResult{})
-	gob.Register([]TestResult{})
+	gob.Register([]TestResult{}) // Esto costó de descubrir...
 }
 
