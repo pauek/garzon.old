@@ -87,15 +87,20 @@ func evaluate(A Account, done chan bool) {
 	}
 	log.Printf("Connected.\n")
 
-	s := <- submissions
-	var V eval.Veredict
-	log.Printf("Submitting '%s'", s.Problem.Title)
-	err = client.Call("Eval.Submit", s, &V)
-	if err != nil {
-		log.Printf("%s\n", e.String())
-		log.Fatalf("Call failed: %s\n", err)
+	for {
+		s, ok := <- submissions
+		if ! ok {
+			break
+		}
+		var V eval.Veredict
+		log.Printf("Submitting '%s'", s.Problem.Title)
+		err = client.Call("Eval.Submit", s, &V)
+		if err != nil {
+			log.Printf("%s\n", e.String())
+			log.Fatalf("Call failed: %s\n", err)
+		}
+		fmt.Printf("Result was %v\n", V)
 	}
-	fmt.Printf("Result was %v\n", V)
 	client.Close()
 	if cmd != nil {
 		cmd.Process.Kill()   // kill 'ssh'

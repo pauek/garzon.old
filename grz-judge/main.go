@@ -41,7 +41,22 @@ func submitTestProblem() {
 	   Problem: problem,
 	   Solution: minimal, // FIXME: prog.Code{Lang: "c++", Text: minimal},
 	}
-	log.Printf("Submitted!")
+}
+
+func submitDatabaseProblem(probid string) {
+	problems, err := db.Get("localhost:5984", "problems")
+	if err != nil {
+		log.Fatalf("db.Get: %s\n", err)
+	}
+	P, _, err := problems.Get(probid)
+	if err != nil {
+		log.Fatalf("problems.Get: %s\n", err)
+	}
+	problem := P.(*eval.Problem)
+	submissions <- eval.Submission{
+		Problem: problem,
+		Solution: problem.Solution,
+	}
 }
 
 var copyfiles bool
@@ -60,7 +75,11 @@ func main() {
 		go evaluate(A, done)
 	}
 
-	submitTestProblem()
+	for i := 0; i < 10; i++ {
+		submitTestProblem()
+		submitDatabaseProblem("cpp.ficheros.SumaEnteros")
+	}
+	close(submissions)
 
 	for i := 0; i < len(accounts); i++ {
 		<- done
