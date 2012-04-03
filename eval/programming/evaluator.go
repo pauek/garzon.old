@@ -237,7 +237,9 @@ func (E *Evaluator) ReadFrom(dir string, prob *eval.Problem) error {
 	if err != nil {
 		return fmt.Errorf("Cannot read file '%s': %s\n", sol, err)
 	}
-	prob.Solution = fmt.Sprintf("c++\n%s", solstr)
+	// TODO: Put extension in the first line:
+	//   prob.Solution = fmt.Sprintf("c++\n%s", solstr)
+	prob.Solution = string(solstr)
 	
 	// path/filepath.glob: "New matches are added in 
 	//   lexicographical order" (we use that for now)
