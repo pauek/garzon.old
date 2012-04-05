@@ -145,12 +145,16 @@ func readProblem(dir string) (id string, Problem *eval.Problem) {
 	}
 
 	// Read directory
+	R, ok := ev.(eval.DirReader)
+	if ! ok {
+		_err("Retrieved object is not a DirReader")
+	}
+	if err := R.ReadDir(absdir, Problem); err != nil {
+		_err("Coudln't read problem '%s': %s\n", id, err)
+	}
 	E, ok := ev.(eval.Evaluator)
 	if ! ok {
 		_err("Retrieved object is not an Evaluator")
-	}
-	if err := E.ReadFrom(absdir, Problem); err != nil {
-		_err("Coudln't read problem '%s': %s\n", id, err)
 	}
 	Problem.Evaluator = db.Obj{E}
 	return

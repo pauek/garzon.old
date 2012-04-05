@@ -2,86 +2,148 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"flag"
+	"sync"
+	"time"
 	"strings"
+	"net/http"
+	"io/ioutil"
+
 	"garzon/db"
+	"garzon/db/problems"
 	"garzon/eval"
 	prog "garzon/eval/programming"
 )
 
-var submissions chan eval.Submission
+const MaxQueueSize = 50
+
+type Submissions struct {
+	Channel chan string
+	Mutex   sync.Mutex
+	inprogress map[string]*eval.Submission
+}
+
+func (S *Submissions) Init() {
+	S.inprogress = make(map[string]*eval.Submission)
+	S.Channel    = make(chan string, MaxQueueSize)
+}
+
+func (S *Submissions) Close() { 
+	close(S.Channel) 
+}
+
+func (S *Submissions) Pending() int {
+	return len(S.inprogress)
+}
+
+func (S *Submissions) Add(Problem *eval.Problem, Solution string) (ID string) {
+	ID = db.NewUUID()
+	S.Mutex.Lock()
+	S.inprogress[ID] = &eval.Submission{
+		Problem:  Problem,
+		Solution: Solution,
+		Submitted: time.Now(),
+		State: "In Queue",
+	}
+	S.Mutex.Unlock()
+	S.Channel <- ID
+	return
+}
+
+func (S *Submissions) Get(id string) *eval.Submission {
+	return S.inprogress[id]
+}
+
+var Queue Submissions
 
 func init() {
-	submissions = make(chan eval.Submission)
 	prog.Register()
 }
 
-func parseUserHost(userhost string) Account {
+func parseUserHost(userhost string) (user, host string) {
 	parts := strings.Split(userhost, "@")
 	if len(parts) != 2 {
 		log.Fatal("Wrong user@host = '%s'\n", userhost)
 	}
-	return Account{user: parts[0], host: parts[1]}
+	return parts[0], parts[1]
 }
 
-func submitTestProblem() {
-	const minimal = `int main() {}`
 
-	problem := &eval.Problem{
-		Title: "Doesn't matter...",
-		Solution: minimal, // FIXME: prog.Code{Lang: "c++", Text: minimal},
-	   Evaluator: db.Obj{
-			&prog.Evaluator{
-				Tests: []db.Obj{{&prog.InputTester{Input: ""}}},
-			},
-		},
-	}
-	submissions <- eval.Submission{
-	   Problem: problem,
-	   Solution: minimal, // FIXME: prog.Code{Lang: "c++", Text: minimal},
-	}
-}
+var done chan bool
+var evaluators []*Evaluator
 
-func submitDatabaseProblem(probid string) {
-	problems, err := db.Get("localhost:5984", "problems")
-	if err != nil {
-		log.Fatalf("db.Get: %s\n", err)
-	}
-	P, _, err := problems.Get(probid)
-	if err != nil {
-		log.Fatalf("problems.Get: %s\n", err)
-	}
-	problem := P.(*eval.Problem)
-	submissions <- eval.Submission{
-		Problem: problem,
-		Solution: problem.Solution,
-	}
-}
-
-var copyfiles bool
-
-func main() {
-	flag.BoolVar(&copyfiles, "copy", false, "Copy files to remote accounts")
-	flag.Parse()
-	accounts := flag.Args()
-	if len(accounts) < 1 {
+func launchEvaluators(accounts []string) {
+	N := len(accounts)
+	if N < 1 {
 		log.Fatal("Accounts must be 'user@host' (and >= 1)")
 	}
-	done := make(chan bool)
+	evaluators = make([]*Evaluator, N)
+	done = make(chan bool)
 	for i, acc := range accounts {
-		A := parseUserHost(acc)
-		A.port = 50000 + i
-		go evaluate(A, done)
+		user, host := parseUserHost(acc)
+		evaluators[i] = &Evaluator{user: user, host: host, port: 50000 + i}
+		go evaluators[i].Run(done)
 	}
+}
 
-	for i := 0; i < 10; i++ {
-		submitTestProblem()
-		submitDatabaseProblem("cpp.ficheros.SumaEnteros")
-	}
-	close(submissions)
-
-	for i := 0; i < len(accounts); i++ {
+func waitForEvaluators() {
+	for i := 0; i < len(evaluators); i++ {
 		<- done
 	}
+}
+
+func submit(w http.ResponseWriter, req *http.Request) {
+	log.Printf("New submission: %s\n", req.FormValue("ID"))
+	if req.Method != "POST" {
+		fmt.Fprintf(w, "ERROR: Wrong method")
+		return
+	}
+	if Queue.Pending() > MaxQueueSize {
+		fmt.Fprint(w, "ERROR: Server too busy")
+		return
+	}
+	id := req.FormValue("ID")
+	problem, _ := problems.Get(id)
+	if problem == nil {
+		fmt.Fprint(w, "ERROR: Problem not found")
+		return
+	}
+	file, _, err := req.FormFile("solution")
+	if err != nil {
+		fmt.Fprint(w, "Cannot get solution file")
+	}
+	solution, err := ioutil.ReadAll(file)
+	if err != nil {
+		fmt.Fprint(w, "Cannot read solution file")
+	}
+	ID := Queue.Add(problem, string(solution))
+	fmt.Fprintf(w, "%s", ID)
+	return
+}
+
+func veredict(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprint(w, "veredict")
+}
+
+
+var debugMode, copyFiles bool
+
+func main() {
+	flag.BoolVar(&copyFiles, "copy",  false, "Copy files to remote accounts")
+	flag.BoolVar(&debugMode, "debug", false, "Enable/Disable debug mode")
+	flag.Parse()
+	accounts := flag.Args()
+
+	Queue.Init()
+	launchEvaluators(accounts)
+	http.HandleFunc("/submit/",   submit)
+	http.HandleFunc("/veredict/", veredict)
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		log.Printf("ListenAndServe: %s\n", err)
+	}
+	Queue.Close()
+	waitForEvaluators()
 }

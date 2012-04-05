@@ -3,13 +3,17 @@ package eval
 
 import (
 	"log"
+	"time"
 	"encoding/gob"
 	"garzon/db"
 )
 
 type Submission struct {
-	Problem *Problem
-	Solution string
+	Problem  *Problem
+	Solution  string
+	State     string
+	Submitted time.Time
+	Resolved  time.Time
 }
 
 type Problem struct {
@@ -24,7 +28,10 @@ type Veredict struct {
 
 type Evaluator interface {
 	Evaluate(Problem *Problem, Solution string) Veredict
-	ReadFrom(dir string, Problem *Problem) error
+}
+
+type DirReader interface {
+	ReadDir(dir string, Problem *Problem) error
 }
 
 type Eval bool
@@ -44,6 +51,3 @@ func init() {
 	gob.Register(Veredict{})
 	gob.Register(Submission{})
 }
-
-
-

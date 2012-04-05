@@ -23,6 +23,7 @@ const usage = `usage: grz-eval [options...]
 
 Options:
 	-p <port>,   Port to listen on (50000)
+   -k,          Keep Files
 
 `
 
@@ -31,7 +32,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, usage)
 	}
 	port := flag.Int("p", 50000, "Port")
+	keep := flag.Bool("k", false, "Keep Files")
 	flag.Parse()
+	prog.KeepFiles = *keep
 
 	rpc.HandleHTTP()
 	L, err := net.Listen("tcp", fmt.Sprintf(":%d", *port)); 

@@ -25,11 +25,11 @@ type InputTesterState struct {
 	modelOut, accusedOut bytes.Buffer
 }
 
-func (I *InputTester) Prepare(C *context) {
+func (I InputTester) Prepare(C *context) {
 	C.State = new(InputTesterState)
 }
 
-func (I *InputTester) SetUp(C *context, cmd *exec.Cmd) error {
+func (I InputTester) SetUp(C *context, cmd *exec.Cmd) error {
 	log.Printf("Testing input '%s'\n", prefix(I.Input, 20))
 	cmd.Stdin  = strings.NewReader(I.Input)
 	state := C.State.(*InputTesterState)
@@ -44,11 +44,11 @@ func (I *InputTester) SetUp(C *context, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (I *InputTester) CleanUp(*context) error {
+func (I InputTester) CleanUp(*context) error {
 	return nil
 }
 
-func (I *InputTester) Veredict(C *context) TestResult {
+func (I InputTester) Veredict(C *context) TestResult {
 	state := C.State.(*InputTesterState)
 	if state.modelOut.String() == state.accusedOut.String() {
 		return TestResult{Veredict: "Accept"}
@@ -56,7 +56,7 @@ func (I *InputTester) Veredict(C *context) TestResult {
 	return TestResult{Veredict: "Wrong Answer"}
 }
 
-func (I *InputTester) ReadFrom(path string) error {
+func (I InputTester) ReadFrom(path string) error {
 	text, err := ioutil.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("InputTester.ReadFrom: cannot read '%s': %s\n", path, err)
@@ -175,7 +175,7 @@ func (I FilesTester) Veredict(C *context) TestResult {
 	return TestResult{Veredict: "Accept"}
 }
 
-func (I *FilesTester) ReadFrom(path string) (err error) {
+func (I FilesTester) ReadFrom(path string) (err error) {
 	I.InputFiles,  err = readFiles(path, "in")
 	if err != nil { return err }
 	I.OutputFiles, err = readFiles(path, "out")

@@ -13,11 +13,6 @@ import (
 	"garzon/eval"
 )
 
-type Account struct {
-	user, host string
-	port int
-}
-
 const remotePort = 50000
 
 func findLocation(cmd string) (path string) {
@@ -40,71 +35,85 @@ func copyToRemote(path, userhost, remPath string) {
 	}
 }
 
-func killRemoteProcess(userhost string) {
-	exec.Command("ssh", userhost, "pkill -9 grz-eval").Run()
+
+type Evaluator struct {
+	user, host string
+	port    int
+	sshcmd *exec.Cmd
+	client *rpc.Client
+	stderr  bytes.Buffer
 }
 
-func copyFiles(userhost string) {
+func (E *Evaluator) userhost() string {
+	return fmt.Sprintf("%s@%s", E.user, E.host)
+}
+
+func (E *Evaluator) copyFiles() {
 	grzjail := findLocation("grz-jail")
 	grzeval := findLocation("grz-eval")
-	copyToRemote(grzjail, userhost, ".")
-	copyToRemote(grzeval, userhost, ".")
+	copyToRemote(grzjail, E.userhost(), ".")
+	copyToRemote(grzeval, E.userhost(), ".")
 }
 
-func evaluate(A Account, done chan bool) {
-	userhost := fmt.Sprintf("%s@%s", A.user, A.host)
+func (E *Evaluator) startRemoteProcess() {
+	log.Printf("Executing 'grz-eval' at '%s'\n", E.userhost())
+	debugFlag := ""
+	if debugMode { debugFlag = "-k" }
+	cmdline := fmt.Sprintf("./grz-eval %s -p %d", debugFlag, remotePort)
+	redir   := fmt.Sprintf("localhost:%d:localhost:%d", E.port, remotePort)
+	E.sshcmd = exec.Command("ssh", "-L", redir, E.userhost(), cmdline)
+	E.sshcmd.Stderr = &E.stderr
+	if err := E.sshcmd.Start(); err != nil {
+		log.Fatalf("Couldn't run \"%s\" on account '%s': %s\n", cmdline, E.userhost(), err)
+	}
+}
 
-	var e bytes.Buffer
-	var cmd *exec.Cmd
-	if true {
-		killRemoteProcess(userhost)
+func (E *Evaluator) killRemoteProcess() {
+	exec.Command("ssh", E.userhost(), "pkill -9 grz-eval").Run()
+}
 
-		// copy files over
-		if copyfiles {
-			copyFiles(userhost)
-		}
-
-		// Run grz-eval there
-		log.Printf("Executing 'grz-eval' at '%s'\n", userhost)
-		cmdline := fmt.Sprintf("./grz-eval -p %d", remotePort)
-		redir   := fmt.Sprintf("localhost:%d:localhost:%d", A.port, remotePort)
-		cmd = exec.Command("ssh", "-L", redir, userhost, cmdline)
-		cmd.Stderr = &e
-		if err := cmd.Start(); err != nil {
-			log.Fatalf("Couldn't run \"%s\" on account '%s': %s\n", cmdline, userhost, err)
-		}
-		
-		// hack: wait for the ssh process
-		time.Sleep(5 * time.Second)
-	}	 
-
-	// Submission loop
+func (E *Evaluator) connectRPC() {
 	log.Printf("Dialing RPC...\n")
-	client, err := rpc.DialHTTP("tcp", fmt.Sprintf("localhost:%d", A.port))
+	var err error
+	E.client, err = rpc.DialHTTP("tcp", fmt.Sprintf("localhost:%d", E.port))
 	if err != nil {
-		log.Printf("%s\n", e.String())
+		log.Printf("\n\n%s\n\n", E.stderr.String())
 		log.Fatalf("Error dialing: %s\n", err)
 	}
 	log.Printf("Connected.\n")
+}
 
+func (E *Evaluator) handleSubmissions() {
 	for {
-		s, ok := <- submissions
-		if ! ok {
-			break
-		}
+		id, ok := <- Queue.Channel
+		if ! ok { break }
+		sub := Queue.Get(id)
 		var V eval.Veredict
-		log.Printf("Submitting '%s'", s.Problem.Title)
-		err = client.Call("Eval.Submit", s, &V)
+		log.Printf("Submitting '%s'", sub.Problem.Title)
+		err := E.client.Call("Eval.Submit", sub, &V)
 		if err != nil {
-			log.Printf("%s\n", e.String())
+			log.Printf("\n\n%s\n\n", E.stderr.String())
 			log.Fatalf("Call failed: %s\n", err)
 		}
 		fmt.Printf("Result was %v\n", V)
 	}
-	client.Close()
-	if cmd != nil {
-		cmd.Process.Kill()   // kill 'ssh'
+}
+
+func (E *Evaluator) cleanUp() {
+	E.client.Close()
+	if E.sshcmd != nil {
+		E.sshcmd.Process.Kill()
 	}
-	killRemoteProcess(userhost)
+	E.killRemoteProcess()
+}
+
+func (E *Evaluator) Run(done chan bool) {
+	E.killRemoteProcess()
+	if copyFiles { E.copyFiles() }
+	E.startRemoteProcess()
+	time.Sleep(3 * time.Second) // FIXME
+	E.connectRPC()
+	E.handleSubmissions()
+	E.cleanUp()
 	done <- true
 }
