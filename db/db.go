@@ -31,6 +31,7 @@
 package db
 
 import (
+	"os"
 	"fmt"
 	"log"
 	"time"
@@ -44,9 +45,14 @@ import (
 	"math/rand"
 )
 
+var DbUrl string
 var client *http.Client
 
 func init() {
+	DbUrl = os.Getenv("GRZ_DB")
+	if DbUrl == "" {
+		DbUrl = "http://localhost:5984"
+	}
 	client = &http.Client{}
 }
 
@@ -188,11 +194,11 @@ func Register(alias string, v interface{}) {
 // Database
 
 type Database struct {
-	server, dbname string
+	dbname string
 }
 
 func (D *Database) url(path string) string {
-	return fmt.Sprintf("http://%s/%s/%s", D.server, D.dbname, path)
+	return fmt.Sprintf("%s/%s/%s", DbUrl, D.dbname, path)
 }
 
 func (D *Database) Rev(id string) (rev string, err error) {
@@ -290,8 +296,7 @@ func (D *Database) put(id, rev string, v interface{}) error {
 	case err != nil:
 		return fmt.Errorf("Put: http.client error: %s\n", err)
 	case resp.StatusCode != 201:
-		body, _ := ioutil.ReadAll(resp.Body)
-		fmt.Printf("%s\n", body)
+		// body, _ := ioutil.ReadAll(resp.Body)
 		return fmt.Errorf("Put: HTTP status = '%s'\n", resp.Status)
 	}
 	return nil
@@ -317,9 +322,9 @@ func (D *Database) Delete(id, rev string) error {
 
 // Database Functions
 
-func Get(server, dbname string) (db *Database, err error) {
+func GetDB(dbname string) (db *Database, err error) {
 	db = nil
-	url := fmt.Sprintf("http://%s/%s/", server, dbname)
+	url := fmt.Sprintf("%s/%s/", DbUrl, dbname)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		err = fmt.Errorf("Get: cannot create request: %s\n", err)
@@ -337,12 +342,12 @@ func Get(server, dbname string) (db *Database, err error) {
 		err = fmt.Errorf("Get: HTTP status = '%s'\n", resp.Status)
 		return
 	}
-	return &Database{server, dbname}, nil
+	return &Database{dbname}, nil
 }
 
-func Create(server, dbname string) (db *Database, err error) {
+func CreateDB(dbname string) (db *Database, err error) {
 	db = nil
-	url := fmt.Sprintf("http://%s/%s/", server, dbname)
+	url := fmt.Sprintf("%s/%s/", DbUrl, dbname)
 	req, err := http.NewRequest("PUT", url, nil)
 	if err != nil {
 		err = fmt.Errorf("Get: cannot create request: %s\n", err)
@@ -357,10 +362,18 @@ func Create(server, dbname string) (db *Database, err error) {
 		err = fmt.Errorf("Create: HTTP status = '%s'\n", resp.Status)
 		return
 	}
-	return &Database{server, dbname}, nil
+	return &Database{dbname}, nil
 }
 
-func Delete(db *Database) (err error) {
+func GetOrCreateDB(dbname string) (db *Database, err error) {
+	db, err = GetDB(dbname)
+	if db == nil {
+		db, err = CreateDB(dbname)
+	}
+	return
+}
+
+func DeleteDB(db *Database) (err error) {
 	req, err := http.NewRequest("DELETE", db.url(""), nil)
 	if err != nil {
 		err = fmt.Errorf("Get: cannot create request: %s\n", err)
@@ -376,14 +389,6 @@ func Delete(db *Database) (err error) {
 	case resp.StatusCode != 200:
 		err = fmt.Errorf("Create: HTTP status = '%s'\n", resp.Status)
 		return
-	}
-	return
-}
-
-func GetOrCreate(server, dbname string) (db *Database, err error) {
-	db, err = Get(server, dbname)
-	if db == nil {
-		db, err = Create(server, dbname)
 	}
 	return
 }

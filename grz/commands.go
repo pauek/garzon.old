@@ -14,40 +14,22 @@ import (
 	prog "garzon/eval/programming"
 )
 
-var addCommand = Command{
-	help: `Add a problem to the Database`,
-	usage: _addUsage,
-	function: add,
-}
 
-var updateCommand = Command{
-	help: `Update a problem in the Database`,
-	usage: _updateUsage,
-	function: update,
-}
-
-var submitCommand = Command{
-	help: `Submit a problem to the judge`,
-	usage: _submitUsage,
-	function: submit,
-}
-
-const _addUsage = `usage: git add [options] <directory>
+const u_add = `usage: git add [options] <directory>
 
 Options:
   --path    Colon-separated list of directories to consider 
             as roots
 
 `
-const _updateUsage = `usage: git update [options] <directory>
+const u_update = `usage: git update [options] <directory>
 
 Options:
   --path    Colon-separated list of directories to consider 
             as roots
 
 `
-
-const _submitUsage = `usage: git submit [options] <ProblemID> <filename>
+const u_submit = `usage: git submit [options] <ProblemID> <filename>
 
 Options:
   --judge    URL for the judge
@@ -73,7 +55,7 @@ func addParseFlags(args []string) string {
 	args = fset.Args()
 	if len(args) != 1 {
 		fmt.Fprint(os.Stderr, "Wrong number of arguments\n")
-		usageCommand("add", 2)
+		usageCmd("add", 2)
 	}
 
 	// remove trailing '/'
@@ -128,17 +110,10 @@ func readProblem(dir string) (id string, Problem *eval.Problem) {
 		}
 	}
 
-	// Get the <type> of the problem
+	// Get the <type> of the problem + ID
 	base, typ := splitType(relative)
-
-	// Get ID
 	id = strings.Replace(base, "/", ".", -1)
 	
-	// fmt.Printf("abs:  %s\n", absdir)
-	// fmt.Printf("dir:  %s\n", dir)
-	// fmt.Printf("root: %s\n", root)
-	// fmt.Printf("ID:   %s\n", id)
-
 	// Lookup <type>.Evaluator
 	ev := db.ObjFromType(typ + ".Evaluator")
 	if ev == nil {
@@ -180,15 +155,15 @@ func add(args []string) {
 	id, Problem := readProblem(dir)
 	
 	// Store in the database
-	db, err := db.GetOrCreate("localhost:5984", "problems")
+	problems, err := db.GetOrCreateDB("problems")
 	if err != nil {
-		_err("Cannot access database (http://localhost:5984/problems)")
+		_err("Cannot get db 'problems': %s\n", err)
 	}
-	rev, _ := db.Rev(id)
+	rev, _ := problems.Rev(id)
 	if rev != "" {
 		_err("Problem '%s' already in the database", id)
 	}
-	if err := db.Put(id, Problem); err != nil {
+	if err := problems.Put(id, Problem); err != nil {
 		_err("Couldn't add: %s\n", err)
 	}
 }
@@ -199,15 +174,15 @@ func update(args []string) {
 	id, Problem := readProblem(dir)
 	
 	// Store in the database
-	db, err := db.GetOrCreate("localhost:5984", "problems")
+	problems, err := db.GetOrCreateDB("problems")
 	if err != nil {
-		_err("Cannot access database (http://localhost:5984/problems)")
+		_err("Cannot get database 'problems': %s\n", err)
 	}
-	rev, _ := db.Rev(id)
+	rev, _ := problems.Rev(id)
 	if rev == "" {
 		_err("Problem '%s' not found in the database", id)
 	}
-	if err := db.Update(id, rev, Problem); err != nil {
+	if err := problems.Update(id, rev, Problem); err != nil {
 		_err("Couldn't update: %s\n", err)
 	}
 }
@@ -224,7 +199,7 @@ func submit(args []string) {
 
 	if len(args) != 2 {
 		fmt.Fprintf(os.Stderr, "Wrong number of arguments")
-		usageCommand("submit", 2)
+		usageCmd("submit", 2)
 	}
 
 	id, err := client.Submit(args[0], args[1])

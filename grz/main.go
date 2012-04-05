@@ -6,11 +6,6 @@ import (
 	"fmt"
 )
 
-var args []string
-
-const _usage_header = "usage: grz <command> [<args>]\n\nCommands:\n"
-const _usage_footer= "\nSee 'grz help <command>' for more information.\n"
-
 type Command struct {
 	help  string
 	usage string
@@ -20,11 +15,15 @@ type Command struct {
 var commands map[string]*Command
 
 func init() {
-	commands = make(map[string]*Command)
-	commands["add"]    = &addCommand
-	commands["update"] = &updateCommand
-	commands["submit"] = &submitCommand
+	commands = map[string]*Command{
+		"add":    &Command{`Add a problem to the Database`,    u_add,    add},
+		"update": &Command{`Update a problem in the Database`, u_update, update},
+		"submit": &Command{`Submit a problem to the judge`,    u_submit, submit},
+	}
 }
+
+const _usage_header = "usage: grz <command> [<args>]\n\nCommands:\n"
+const _usage_footer= "\nSee 'grz help <command>' for more information.\n"
 
 func usage(exitcode int) {
 	fmt.Fprint(os.Stderr, _usage_header)
@@ -35,7 +34,7 @@ func usage(exitcode int) {
 	os.Exit(exitcode)
 }
 
-func usageCommand(cmd string, exitcode int) {
+func usageCmd(cmd string, exitcode int) {
 	fmt.Fprint(os.Stderr, commands[cmd].usage)
 	os.Exit(exitcode)
 }

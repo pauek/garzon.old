@@ -68,9 +68,16 @@ var problems *db.Database
 var submissions *db.Database
 
 func init() {
+	var err error
 	prog.Register()
-	problems    = db.Problems()
-	submissions = db.Submissions()
+	problems, err = db.GetDB("problems")
+	if err != nil {
+		log.Fatalf("Cannot get database 'problems': %s\n")
+	}
+	submissions, err = db.GetOrCreateDB("submissions")
+	if err != nil {
+		log.Fatalf("Cannot get database 'submissions': %s\n")
+	}
 }
 
 func parseUserHost(userhost string) (user, host string) {

@@ -29,7 +29,7 @@ func init() {
 func TestProblem(t *testing.T) {
 	const pid = "Cpp.Intro.SumaEnteros"
 
-	db, err := GetOrCreate("localhost:5984", "test-problem-0001")
+	db, err := GetOrCreateDB("test-problem-0001")
 	if err != nil {
 		t.Fatalf("Cannot get or create database: %s\n", err)
 	}
@@ -71,5 +71,5 @@ func TestProblem(t *testing.T) {
 		t.Errorf("Cannot delete '%s': %s\n", pid, err)
 	}
 
-	Delete(db)
+	DeleteDB(db)
 }
