@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 
 	"garzon/db"
-	"garzon/db/problems"
 	"garzon/eval"
 	prog "garzon/eval/programming"
 )
@@ -38,12 +37,13 @@ func (S *Submissions) Pending() int {
 	return len(S.inprogress)
 }
 
-func (S *Submissions) Add(Problem *eval.Problem, Solution string) (ID string) {
+func (S *Submissions) Add(ProblemID string, Problem *eval.Problem, Solution string) (ID string) {
 	ID = db.NewUUID()
 	S.Mutex.Lock()
 	S.inprogress[ID] = &eval.Submission{
-		Problem:  Problem,
-		Solution: Solution,
+	   ProblemID: ProblemID, 
+		Problem:   Problem,
+		Solution:  Solution,
 		Submitted: time.Now(),
 		State: "In Queue",
 	}
@@ -58,10 +58,18 @@ func (S *Submissions) Get(id string) (sub *eval.Submission) {
 	return
 }
 
+func (S *Submissions) Delete(id string) {
+	delete(S.inprogress, id)
+}
+
 var Queue Submissions
+var problems *db.Database
+var submissions *db.Database
 
 func init() {
 	prog.Register()
+	problems    = db.Problems()
+	submissions = db.Submissions()
 }
 
 func parseUserHost(userhost string) (user, host string) {
@@ -106,10 +114,11 @@ func submit(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprint(w, "ERROR: Server too busy")
 		return
 	}
-	id := req.FormValue("ID")
-	problem, _ := problems.Get(id)
-	if problem == nil {
-		fmt.Fprint(w, "ERROR: Problem not found")
+	probid := req.FormValue("ID")
+	var problem eval.Problem
+	_, err := problems.Get(probid, &problem)
+	if err != nil {
+		fmt.Fprint(w, "ERROR: Cannot get problem")
 		return
 	}
 	file, _, err := req.FormFile("solution")
@@ -120,26 +129,29 @@ func submit(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		fmt.Fprint(w, "Cannot read solution file")
 	}
-	ID := Queue.Add(problem, string(solution))
+	ID := Queue.Add(probid, &problem, string(solution))
 	fmt.Fprintf(w, "%s\n", ID)
 	return
 }
 
-const vfmt = `
-Submission ID:  %s
-Problem Title:  %s
-Time submitted: %s
-Time resolved:  %s
-Veredict:       %s
-`
-
-func veredict(w http.ResponseWriter, req *http.Request) {
-	id := req.URL.Path[len("/veredict/"):]
+func status(w http.ResponseWriter, req *http.Request) {
+	id := req.URL.Path[len("/status/"):]
 	sub := Queue.Get(id)
-	fmt.Fprintf(w, vfmt[1:], 
-		id, sub.Problem.Title, sub.Submitted, sub.Resolved, sub.Veredict)
+	if sub != nil {
+		fmt.Fprintf(w, "%s\n", sub.State)
+		return
+	}
+	fmt.Printf("Status for ID: %s\n", id)
+	rev, err := submissions.Rev(id)
+	if err != nil {
+		log.Printf("Cannot query submission '%s'\n", id)
+	}
+	if rev != "" {
+		fmt.Fprint(w, "Resolved\n")
+	} else {
+		fmt.Fprint(w, "Not found\n")
+	}
 }
-
 
 var debugMode, copyFiles bool
 
@@ -151,8 +163,8 @@ func main() {
 
 	Queue.Init()
 	launchEvaluators(accounts)
-	http.HandleFunc("/submit/",   submit)
-	http.HandleFunc("/veredict/", veredict)
+	http.HandleFunc("/submit/", submit)
+	http.HandleFunc("/status/", status)
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		log.Printf("ListenAndServe: %s\n", err)

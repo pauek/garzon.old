@@ -55,14 +55,15 @@ func TestProblem(t *testing.T) {
 	}
 
 	// Get
-	obj, rev, err := db.Get(pid)
+	var obj Problem
+	rev, err = db.Get(pid, &obj)
 	if err != nil {
 		t.Errorf("Cannot get: %s\n", err)
 	}
-	if ! reflect.DeepEqual(P, obj) {
+	if ! reflect.DeepEqual(P, &obj) {
 		fmt.Printf("%#v\n", P)
-		fmt.Printf("%#v\n", obj)
-		t.Errorf("Different data\n")
+		fmt.Printf("%#v\n", &obj)
+		t.Fatal("Different data\n")
 	}
 
 	// Delete

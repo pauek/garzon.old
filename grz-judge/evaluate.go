@@ -96,9 +96,13 @@ func (E *Evaluator) handleSubmissions() {
 			log.Fatalf("Call failed: %s\n", err)
 		}
 		sub.Resolved = time.Now()
-		sub.Veredict = &V
-		// Save in the database
-		// Remove from Queue
+		sub.Veredict = V
+		sub.Problem = nil
+		if err = submissions.Put(id, &sub); err != nil {
+			log.Fatalf("Cannot save submission in database: %s\n", err)
+		}
+		log.Printf("Saved submission '%s'\n", id)
+		Queue.Delete(id)
 	}
 }
 

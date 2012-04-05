@@ -9,12 +9,13 @@ import (
 )
 
 type Submission struct {
+	ProblemID string
 	Problem  *Problem
 	Solution  string
 	State     string
 	Submitted time.Time
 	Resolved  time.Time
-	Veredict *Veredict
+	Veredict  Veredict
 }
 
 type Problem struct {
@@ -47,8 +48,10 @@ func (E *Eval) Submit(S Submission, V *Veredict) error {
 
 // RPC
 func init() {
-	db.Register("eval.Problem", Problem{})
+	db.Register("eval.Problem",    Problem{})
+	db.Register("eval.Submission", Submission{})
+	db.Register("eval.Veredict",   Veredict{})
 	gob.Register(Problem{})
-	gob.Register(Veredict{})
 	gob.Register(Submission{})
+	gob.Register(Veredict{})
 }

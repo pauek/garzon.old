@@ -146,7 +146,10 @@ func (E Evaluator) Evaluate(P *eval.Problem, Solution string) eval.Veredict {
 	if !KeepFiles {
 		C.Destroy()
 	}
-	return eval.Veredict{Message: "Accept", Details: db.Obj{results}}
+	return eval.Veredict{
+	   Message: "Accept",
+	   Details: db.Obj{VeredictDetails{results}},
+	}
 }
 
 func (E Evaluator) prepareContext(P *eval.Problem, accused Code) (C *context, err error) {

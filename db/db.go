@@ -33,6 +33,7 @@ package db
 import (
 	"fmt"
 	"log"
+	"time"
 	"bytes"
 	"strings"
 	"reflect"
@@ -52,6 +53,10 @@ func init() {
 // UUIDs
 
 const hex = "0123456789abcdef"
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func NewUUID() string {
 	var uuid [32]byte
@@ -88,7 +93,10 @@ func marshal(v interface{}, preamble map[string]string) ([]byte, error) {
 }
 
 func (obj *Obj) MarshalJSON() ([]byte, error) {
-	return marshal(obj.Obj, map[string]string{ "-type": findAlias(obj.Obj) })
+	if obj.Obj != nil { 
+		return marshal(obj.Obj, map[string]string{ "-type": findAlias(obj.Obj) })
+	}
+	return json.Marshal(nil)
 }
 
 func (obj *Obj) UnmarshalJSON(data []byte) (err error) {
@@ -134,7 +142,8 @@ func typeName(v interface{}) string {
 func mustFindTypeInfo(typename string) TypeInfo {
 	t, ok := typeMap[typename]
 	if ! ok {
-		log.Fatalf("Typename '%s' not found!", typename)
+		panic(fmt.Sprintf("Type name '%s' not found!", typename))
+		// log.Fatalf("Typename '%s' not found!", typename)
 	}
 	return t
 }
@@ -213,8 +222,7 @@ func (D *Database) Rev(id string) (rev string, err error) {
 	return
 }
 
-func (D *Database) Get(id string) (v interface{}, rev string, err error) {
-	v = nil
+func (D *Database) Get(id string, v interface{}) (rev string, err error) {
 	rev = ""
 	req, err := http.NewRequest("GET", D.url(id), nil)
 	if err != nil {
@@ -235,22 +243,20 @@ func (D *Database) Get(id string) (v interface{}, rev string, err error) {
 		err = fmt.Errorf("Get: cannot read response body: %s\n", err)
 		return 
 	}
-	var obj Obj
-	if err = json.Unmarshal(data, &obj); err != nil {
+	if err = json.Unmarshal(data, v); err != nil {
 		err = fmt.Errorf("Get: json.Unmarshal error: %s\n", err)
 		return 
 	}
-	v = obj.Obj
 	rev = resp.Header.Get("Etag")
 	return 
 }
 
 func (D *Database) Put(id string, v interface{}) error {
-	return D.put(id, "", &Obj{v})
+	return D.put(id, "", v)
 }
 
 func (D *Database) Update(id, rev string, v interface{}) error {
-	return D.put(id, rev, &Obj{v})
+	return D.put(id, rev, v)
 }
 
 func (D *Database) PutOrUpdate(id string, v interface{}) error {

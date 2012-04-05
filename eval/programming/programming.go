@@ -36,5 +36,5 @@ type VeredictDetails struct {
 
 type TestResult struct {
 	Veredict string
-	Reason interface{}
+	Reason db.Obj
 }
