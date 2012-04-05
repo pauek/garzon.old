@@ -10,19 +10,26 @@ import (
 
 	"garzon/db"
 	"garzon/eval"
+	"garzon/grz-judge/client"
 	prog "garzon/eval/programming"
 )
 
-var addCommand Command = Command{
+var addCommand = Command{
 	help: `Add a problem to the Database`,
 	usage: _addUsage,
 	function: add,
 }
 
-var updateCommand Command = Command{
+var updateCommand = Command{
 	help: `Update a problem in the Database`,
 	usage: _updateUsage,
 	function: update,
+}
+
+var submitCommand = Command{
+	help: `Submit a problem to the judge`,
+	usage: _submitUsage,
+	function: submit,
 }
 
 const _addUsage = `usage: git add [options] <directory>
@@ -37,6 +44,13 @@ const _updateUsage = `usage: git update [options] <directory>
 Options:
   --path    Colon-separated list of directories to consider 
             as roots
+
+`
+
+const _submitUsage = `usage: git submit [options] <ProblemID> <filename>
+
+Options:
+  --judge    URL for the judge
 
 `
 
@@ -196,4 +210,35 @@ func update(args []string) {
 	if err := db.Update(id, rev, Problem); err != nil {
 		_err("Couldn't update: %s\n", err)
 	}
+}
+
+func submit(args []string) {
+	var url string
+	fset := flag.NewFlagSet("submit", flag.ExitOnError)
+	fset.StringVar(&url, "judge", "", "URL for the Judge")
+	fset.Parse(args)
+
+	if url != "" {
+		client.JudgeUrl = url
+	}
+
+	if len(args) != 2 {
+		fmt.Fprintf(os.Stderr, "Wrong number of arguments")
+		usageCommand("submit", 2)
+	}
+
+	id, err := client.Submit(args[0], args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Submission error: %s\n", err)
+		os.Exit(2)
+	}
+	fmt.Printf("ID: %s\n", id)
+
+	status, err := client.Status(id)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Cannot get status: %s\n", err)
+		os.Exit(2)
+	}
+	fmt.Printf("Status: %s\n", status)
+	
 }

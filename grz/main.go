@@ -23,6 +23,7 @@ func init() {
 	commands = make(map[string]*Command)
 	commands["add"]    = &addCommand
 	commands["update"] = &updateCommand
+	commands["submit"] = &submitCommand
 }
 
 func usage(exitcode int) {

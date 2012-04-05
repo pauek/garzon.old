@@ -16,6 +16,7 @@ import (
 	prog "garzon/eval/programming"
 )
 
+const ListenPort = 50000
 const MaxQueueSize = 50
 
 type Submissions struct {
@@ -93,7 +94,11 @@ func launchEvaluators(accounts []string) {
 	done = make(chan bool)
 	for i, acc := range accounts {
 		user, host := parseUserHost(acc)
-		evaluators[i] = &Evaluator{user: user, host: host, port: 50000 + i}
+		evaluators[i] = &Evaluator{
+			user: user, 
+			host: host,
+			port: ListenPort + 1 + i,
+		}
 		go evaluators[i].Run(done)
 	}
 }
@@ -105,7 +110,7 @@ func waitForEvaluators() {
 }
 
 func submit(w http.ResponseWriter, req *http.Request) {
-	log.Printf("New submission: %s\n", req.FormValue("ID"))
+	log.Printf("New submission: %s\n", req.FormValue("id"))
 	if req.Method != "POST" {
 		fmt.Fprintf(w, "ERROR: Wrong method")
 		return
@@ -114,7 +119,7 @@ func submit(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprint(w, "ERROR: Server too busy")
 		return
 	}
-	probid := req.FormValue("ID")
+	probid := req.FormValue("id")
 	var problem eval.Problem
 	_, err := problems.Get(probid, &problem)
 	if err != nil {
@@ -165,7 +170,7 @@ func main() {
 	launchEvaluators(accounts)
 	http.HandleFunc("/submit/", submit)
 	http.HandleFunc("/status/", status)
-	err := http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(fmt.Sprintf(":%d", ListenPort), nil)
 	if err != nil {
 		log.Printf("ListenAndServe: %s\n", err)
 	}
