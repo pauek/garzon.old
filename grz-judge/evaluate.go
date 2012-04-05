@@ -95,7 +95,10 @@ func (E *Evaluator) handleSubmissions() {
 			log.Printf("\n\n%s\n\n", E.stderr.String())
 			log.Fatalf("Call failed: %s\n", err)
 		}
-		fmt.Printf("Result was %v\n", V)
+		sub.Resolved = time.Now()
+		sub.Veredict = &V
+		// Save in the database
+		// Remove from Queue
 	}
 }
 

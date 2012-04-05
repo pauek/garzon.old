@@ -14,6 +14,7 @@ type Submission struct {
 	State     string
 	Submitted time.Time
 	Resolved  time.Time
+	Veredict *Veredict
 }
 
 type Problem struct {
