@@ -52,7 +52,7 @@ type TestResult struct {
 func (tr TestResult) String() string {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "%s", tr.Veredict)
-	if tr.Veredict != "Accept" {
+	if tr.Veredict != "Accepted" {
 		fmt.Fprintf(&b, ":\n%s\n", tr.Reason.Obj)
 	}
 	return b.String()

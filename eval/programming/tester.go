@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"strings"
 	"path/filepath"
+	"garzon/db"
 )
 
 // InputTester
@@ -48,15 +49,24 @@ func (I InputTester) CleanUp(*context) error {
 	return nil
 }
 
-func (I InputTester) Veredict(C *context) TestResult {
-	state := C.State.(*InputTesterState)
-	if state.modelOut.String() == state.accusedOut.String() {
-		return TestResult{Veredict: "Accepted"}
-	} 
-	return TestResult{Veredict: "Wrong Answer"}
+func noendl(s string) string {
+	return strings.Replace(s, "\n", `\n`, -1)
 }
 
-func (I InputTester) ReadFrom(path string) error {
+func (I InputTester) Veredict(C *context) TestResult {
+	S := C.State.(*InputTesterState)
+	a, b := S.modelOut.String(), S.accusedOut.String()
+	if a == b {
+		return TestResult{Veredict: "Accepted"}
+	}
+	msg := fmt.Sprintf("'%s' (correct) vs. '%s' (wrong)", noendl(a), noendl(b))
+	return TestResult{
+		Veredict: "Wrong Answer",
+		Reason: db.Obj{&SimpleReason{msg}},
+	}
+}
+
+func (I *InputTester) ReadFrom(path string) error {
 	text, err := ioutil.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("InputTester.ReadFrom: cannot read '%s': %s\n", path, err)
@@ -175,7 +185,7 @@ func (I FilesTester) Veredict(C *context) TestResult {
 	return TestResult{Veredict: "Accepted"}
 }
 
-func (I FilesTester) ReadFrom(path string) (err error) {
+func (I *FilesTester) ReadFrom(path string) (err error) {
 	I.InputFiles,  err = readFiles(path, "in")
 	if err != nil { return err }
 	I.OutputFiles, err = readFiles(path, "out")

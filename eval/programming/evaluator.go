@@ -208,7 +208,8 @@ func (E Evaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
 	T.Prepare(C)
 	if ! runtest("model")   { return }
 	if ! runtest("accused") { return }
-	*R = T.Veredict(C)
+	V := T.Veredict(C)
+	*R = V
 	return nil
 }
 
