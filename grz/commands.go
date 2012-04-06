@@ -70,7 +70,7 @@ func addParseFlags(args []string) string {
 }
 
 func splitType(dir string) (base, typ string) {
-	dot := strings.Index(dir, ".")
+	dot := strings.LastIndex(dir, ".")
 	if dot == -1 {
 		_err(`Directory should end with ".<type>"`)
 	}
@@ -85,7 +85,10 @@ func readProblem(dir string) (id string, Problem *eval.Problem) {
 		_err("Cannot get current working directory")
 	}
 	if absdir[0] != '/' {
-		absdir = cwd + "/" + dir
+		absdir = cwd
+		if dir != "." {
+			absdir += "/" + dir
+		}
 	}
 
 	// Check that it is a directory
