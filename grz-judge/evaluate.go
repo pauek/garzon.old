@@ -12,7 +12,7 @@ import (
 	"garzon/eval"
 )
 
-const remotePort = 50000
+const remotePort = 60000
 
 func findLocation(cmd string) (path string) {
 	var b bytes.Buffer
@@ -98,11 +98,13 @@ func (E *Evaluator) handleSubmissions() {
 		sub.Status = "Resolved"
 		sub.Resolved = time.Now()
 		sub.Veredict = V
+		fmt.Printf("Veredict was: %v\n", V)
 		sub.Problem = nil
 		if err = submissions.Put(id, &sub); err != nil {
 			log.Fatalf("Cannot save submission in database: %s\n", err)
 		}
 		log.Printf("Saved submission '%s'\n", id)
+		log.Printf("\n\n%s\n\n", E.stderr.String())
 		Queue.Delete(id)
 	}
 }

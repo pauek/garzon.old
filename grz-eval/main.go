@@ -22,7 +22,7 @@ func init() {
 const usage = `usage: grz-eval [options...]
 
 Options:
-	-p <port>,   Port to listen on (50000)
+	-p <port>,   Port to listen on (60000)
    -k,          Keep Files
 
 `
@@ -31,7 +31,7 @@ func main() {
 	flag.Usage = func () {
 		fmt.Fprintf(os.Stderr, usage)
 	}
-	port := flag.Int("p", 50000, "Port")
+	port := flag.Int("p", 60000, "Port")
 	keep := flag.Bool("k", false, "Keep Files")
 	flag.Parse()
 	prog.KeepFiles = *keep
