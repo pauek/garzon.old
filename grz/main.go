@@ -16,6 +16,7 @@ var commands map[string]*Command
 
 func init() {
 	commands = map[string]*Command{
+		"help":   &Command{``, "", help},
 		"add":    &Command{`Add a problem to the Database`,    u_add,    add},
 		"update": &Command{`Update a problem in the Database`, u_update, update},
 		"delete": &Command{`Delete a problem in the Database`, u_delete, delette},
@@ -29,7 +30,9 @@ const _usage_footer= "\nSee 'grz help <command>' for more information.\n"
 func usage(exitcode int) {
 	fmt.Fprint(os.Stderr, _usage_header)
 	for id, cmd := range commands {
-		fmt.Fprintf(os.Stderr, "  %-10s%s\n", id, cmd.help)
+		if id != "help" {
+			fmt.Fprintf(os.Stderr, "  %-10s%s\n", id, cmd.help)
+		}
 	}
 	fmt.Fprint(os.Stderr, _usage_footer)
 	os.Exit(exitcode)
@@ -48,7 +51,10 @@ func main() {
 	if C, ok := commands[cmd]; ok {
 		C.function(os.Args[2:])
 	} else {
-		fmt.Fprintf(os.Stderr, "grz: '%s' is not a grz command. See 'grz --help'\n", cmd)
-		os.Exit(2)
+		if cmd == "--help" {
+			usage(0)
+		} else {
+			_errx("grz: '%s' is not a grz command. See 'grz help'", cmd)
+		}
 	}
 }

@@ -8,8 +8,12 @@ import (
 )
 
 func _err(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format + "\n", args...)
-	os.Exit(1)
+	fmt.Fprintf(os.Stderr, "grz: " + format + "\n", args...)
+}
+
+func _errx(format string, args ...interface{}) {
+	_err(format, args...)
+	os.Exit(2)
 }
 
 func splitPath(pathstr string) (path []string) {
