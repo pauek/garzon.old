@@ -57,7 +57,7 @@ func firstRes(V eval.Veredict) string {
 
 func TestMinimal(t *testing.T) {
 	V := evalWithInputs(Minimal, Minimal, OneEmptyInput)
-	if V.Details.Obj.([]TestResult)[0].Veredict != "Accept" {
+	if V.Details.Obj.([]TestResult)[0].Veredict != "Accepted" {
 		t.Fail()
 	}
 }
@@ -105,7 +105,7 @@ func TestSumAB(t *testing.T) {
 	inputs := []string{"2 3\n", "4\n5", "1000 2000\n", "500000000 500000000\n"}
 	V := evalWithInputs(SumAB, SumAB, inputs)
 	for i, r := range V.Details.Obj.([]TestResult) {
-		if r.Veredict != "Accept" {
+		if r.Veredict != "Accepted" {
 			inp := strings.Replace(inputs[i], "\n", `\n`, -1)
 			t.Errorf("Failed test '%s'\n", inp)
 		}
@@ -126,7 +126,7 @@ func TestEcho(t *testing.T) {
 				t.Errorf("Veredict should be \"Wrong Answer\" (test %d)", i)
 			} 
 		} else {
-			if r.Veredict != "Accept" {
+			if r.Veredict != "Accepted" {
 				t.Errorf("Veredict should be \"Accept\" (test %d)", i)
 			}
 		}
@@ -275,7 +275,7 @@ func TestFileTester(t *testing.T) {
 
 	// Good
 	V = filesEv.Evaluate(filesProb, sumABFiles)
-	if firstRes(V) != "Accept" {
+	if firstRes(V) != "Accepted" {
 		t.Errorf("Test should be accepted")
 	}
 

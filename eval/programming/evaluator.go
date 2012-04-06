@@ -139,15 +139,24 @@ func (E Evaluator) Evaluate(P *eval.Problem, Solution string) eval.Veredict {
 		return eval.Veredict{Message: fmt.Sprintf("%s\n", err)}
 	}
 	results := make([]TestResult, len(E.Tests))
+	ver := make(map[string]bool)
 	for i, dbobj := range E.Tests {
 		tester := dbobj.Obj.(Tester)
 		E.runTest(C, tester, &results[i])
+		ver[results[i].Veredict] = true
 	}
 	if !KeepFiles {
 		C.Destroy()
 	}
+	var message string
+	for _, m := range []string{"Execution Error", "Wrong Answer", "Accepted"} {
+		if ver[m] {
+			message = m
+			break
+		}
+	}
 	return eval.Veredict{
-	   Message: "Accept",
+	   Message: message,
 	   Details: db.Obj{VeredictDetails{results}},
 	}
 }
@@ -185,7 +194,9 @@ func (E Evaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
 			code := getExitStatus(err)
 			if code == 1 { // Execution Failed
 				err = nil
-				R.Veredict = strings.Replace(stderr.String(), "\n", "", -1)
+				lines := strings.Split(stderr.String(), "\n")
+				R.Veredict = lines[0]
+				R.Reason.Obj = &SimpleReason{strings.Join(lines[1:], "\n")}
 			}
 			return false
 		}

@@ -57,3 +57,12 @@ func (tr TestResult) String() string {
 	}
 	return b.String()
 }
+
+type SimpleReason struct {
+	Message string
+}
+
+func (sr SimpleReason) String() string {
+	return sr.Message
+}
+

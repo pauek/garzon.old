@@ -51,7 +51,7 @@ func (I InputTester) CleanUp(*context) error {
 func (I InputTester) Veredict(C *context) TestResult {
 	state := C.State.(*InputTesterState)
 	if state.modelOut.String() == state.accusedOut.String() {
-		return TestResult{Veredict: "Accept"}
+		return TestResult{Veredict: "Accepted"}
 	} 
 	return TestResult{Veredict: "Wrong Answer"}
 }
@@ -172,7 +172,7 @@ func (I FilesTester) Veredict(C *context) TestResult {
 			return TestResult{Veredict: "Wrong Answer" /* TODO: Add Reason! */}
 		} 
 	}
-	return TestResult{Veredict: "Accept"}
+	return TestResult{Veredict: "Accepted"}
 }
 
 func (I FilesTester) ReadFrom(path string) (err error) {

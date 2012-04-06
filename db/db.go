@@ -143,6 +143,7 @@ var aliasMap map[string]string   // alias -> typename
 func init() {
 	typeMap  = make(map[string]TypeInfo)
 	aliasMap = make(map[string]string)
+	Register("string", "")
 }
 
 func typeName(v interface{}) string {
