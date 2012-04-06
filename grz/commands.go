@@ -30,6 +30,8 @@ Options:
             as roots
 
 `
+const u_delete = `usage: git delete <ProblemID>
+`
 const u_submit = `usage: git submit [options] <ProblemID> <filename>
 
 Options:
@@ -137,6 +139,7 @@ func readProblem(dir string) (id string, Problem *eval.Problem) {
 	// Read directory
 	R, ok := ev.(eval.DirReader)
 	if ! ok {
+		fmt.Printf("%v\n", ev)
 		_err("Retrieved object is not a DirReader")
 	}
 	if err := R.ReadDir(absdir, Problem); err != nil {
@@ -240,4 +243,41 @@ func submit(args []string) {
 	if sub.Veredict.Message != "Accepted" {
 		fmt.Printf("%s\n", sub.Veredict.Details.Obj)
 	}
+}
+
+func delette(args []string) {
+	if len(args) != 1 {
+		fmt.Fprint(os.Stderr, "Wrong number of arguments\n")
+		usageCmd("delete", 2)
+	}
+
+	id := args[0]
+	problems, err := db.GetDB("problems")
+	if err != nil {
+		_err("Cannot get db 'problems': %s\n", err)
+	}
+	var P eval.Problem
+	rev, err := problems.Get(id, &P)
+	if err != nil {
+		_err("Couldn't get problem '%s': %s\n", id, err)
+	}
+
+	// Store in 'problems-deleted'
+	delproblems, err := db.GetOrCreateDB("problems-deleted")
+	if err != nil {
+		_err("Cannot get db 'problems-deleted'")
+	}
+	salt := db.RandString(8)
+	err = delproblems.Put(id + "-" + salt, &P)
+	if err != nil {
+		_err("Cannot backup deleted problem '%s': %s\n", id, err)
+	}
+	
+	// Delete
+	err = problems.Delete(id, rev)
+	if err != nil {
+		_err("Couldn't delete problem '%s': %s\n", id, err)
+	}
+
+	fmt.Printf("Problem '%s' deleted\n", id)
 }

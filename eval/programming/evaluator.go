@@ -219,7 +219,7 @@ func getExitStatus(err error) int {
 // language. Then reads all files 'test.N.<type>', where N is an integer
 // using a polymorphic method 'ReadFrom' for each tester.
 //
-func (E *Evaluator) ReadFrom(dir string, prob *eval.Problem) error {
+func (E *Evaluator) ReadDir(dir string, prob *eval.Problem) error {
 	// Read solution
 	matches, err := filepath.Glob(dir + "/solution.*")
 	if err != nil {

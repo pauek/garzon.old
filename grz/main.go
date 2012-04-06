@@ -18,6 +18,7 @@ func init() {
 	commands = map[string]*Command{
 		"add":    &Command{`Add a problem to the Database`,    u_add,    add},
 		"update": &Command{`Update a problem in the Database`, u_update, update},
+		"delete": &Command{`Delete a problem in the Database`, u_delete, delette},
 		"submit": &Command{`Submit a problem to the judge`,    u_submit, submit},
 	}
 }

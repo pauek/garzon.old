@@ -64,12 +64,16 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func NewUUID() string {
-	var uuid [32]byte
-	for i := 0; i < 32; i++ {
-		uuid[i] = hex[rand.Intn(16)]
+func RandString(length int) string {
+	var str = make([]byte, length)
+	for i := 0; i < length; i++ {
+		str[i] = hex[rand.Intn(16)]
 	}
-	return fmt.Sprintf("%s", uuid)
+	return fmt.Sprintf("%s", str)
+}
+
+func NewUUID() string {
+	return RandString(32)
 }
 
 // Database Object
