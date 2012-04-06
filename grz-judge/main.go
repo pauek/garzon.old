@@ -78,11 +78,11 @@ func init() {
 	prog.Register()
 	problems, err = db.GetDB("problems")
 	if err != nil {
-		log.Fatalf("Cannot get database 'problems': %s\n")
+		log.Fatalf("Cannot get database 'problems': %s\n", err)
 	}
 	submissions, err = db.GetOrCreateDB("submissions")
 	if err != nil {
-		log.Fatalf("Cannot get database 'submissions': %s\n")
+		log.Fatalf("Cannot get database 'submissions': %s\n", err)
 	}
 }
 
