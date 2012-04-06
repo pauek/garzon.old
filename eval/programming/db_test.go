@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"garzon/eval"
 	"garzon/db"
 )
 
@@ -13,7 +14,7 @@ import (
 func TestStoreProblem(t *testing.T) {
 	const dbname = "this-database-shouldn-exist-at-all-in-the-face-of-the-earth-42"
 
-	D, err := db.GetOrCreate("localhost:5984", dbname)
+	D, err := db.GetOrCreateDB(dbname)
 	if err != nil {
 		t.Fatalf("Cannot get or create database: %s\n", err)
 	}
@@ -31,11 +32,12 @@ func TestStoreProblem(t *testing.T) {
 	}
 
 	// Get
-	obj, rev, err := D.Get(pid)
+	var obj eval.Problem
+	rev, err = D.Get(pid, &obj)
 	if err != nil {
 		t.Errorf("Cannot get: %s\n", err)
 	}
-	if ! reflect.DeepEqual(filesProb, obj) {
+	if ! reflect.DeepEqual(filesProb, &obj) {
 		fmt.Printf("%#v\n", filesProb)
 		fmt.Printf("%#v\n", obj)
 		t.Errorf("Different data\n")
@@ -46,5 +48,5 @@ func TestStoreProblem(t *testing.T) {
 		t.Errorf("Cannot delete '%s': %s\n", pid, err)
 	}
 
-	db.Delete(D)
+	db.DeleteDB(D)
 }
