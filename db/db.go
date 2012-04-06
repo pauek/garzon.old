@@ -106,6 +106,10 @@ func (obj *Obj) MarshalJSON() ([]byte, error) {
 }
 
 func (obj *Obj) UnmarshalJSON(data []byte) (err error) {
+	if string(data) == "null" {
+		obj.Obj = nil
+		return nil
+	}
 	var t struct {
 		Alias string `json:"-type"`
 	}

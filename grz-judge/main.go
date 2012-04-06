@@ -46,7 +46,7 @@ func (S *Submissions) Add(ProblemID string, Problem *eval.Problem, Solution stri
 		Problem:   Problem,
 		Solution:  Solution,
 		Submitted: time.Now(),
-		State: "In Queue",
+		Status:    "In Queue",
 	}
 	S.Mutex.Unlock()
 	S.Channel <- ID
@@ -57,6 +57,12 @@ func (S *Submissions) Get(id string) (sub *eval.Submission) {
 	sub, ok := S.inprogress[id]
 	if ! ok { sub = nil }
 	return
+}
+
+func (S *Submissions) SetStatus(id, state string) {
+	S.Mutex.Lock()
+	S.inprogress[id].Status = state
+	S.Mutex.Unlock()
 }
 
 func (S *Submissions) Delete(id string) {
@@ -130,7 +136,7 @@ func submit(w http.ResponseWriter, req *http.Request) {
 	var problem eval.Problem
 	_, err := problems.Get(probid, &problem)
 	if err != nil {
-		fmt.Fprint(w, "ERROR: Cannot get problem")
+		fmt.Fprintf(w, "ERROR: Problem '%s' not found", probid)
 		return
 	}
 	file, _, err := req.FormFile("solution")
@@ -142,7 +148,7 @@ func submit(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprint(w, "Cannot read solution file")
 	}
 	ID := Queue.Add(probid, &problem, string(solution))
-	fmt.Fprintf(w, "%s\n", ID)
+	fmt.Fprintf(w, "%s", ID)
 	return
 }
 
@@ -150,10 +156,9 @@ func status(w http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[len("/status/"):]
 	sub := Queue.Get(id)
 	if sub != nil {
-		fmt.Fprintf(w, "%s\n", sub.State)
+		fmt.Fprintf(w, "%s", sub.Status)
 		return
 	}
-	fmt.Printf("Status for ID: %s\n", id)
 	rev, err := submissions.Rev(id)
 	if err != nil {
 		log.Printf("Cannot query submission '%s'\n", id)

@@ -10,9 +10,9 @@ import (
 
 type Submission struct {
 	ProblemID string
-	Problem  *Problem
+	Problem  *Problem `json:"-"`
 	Solution  string
-	State     string
+	Status    string
 	Submitted time.Time
 	Resolved  time.Time
 	Veredict  Veredict

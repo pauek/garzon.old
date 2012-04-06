@@ -5,6 +5,7 @@ import (
 	"os"
 	"fmt"
 	"flag"
+	"time"
 	"strings"
 	"io/ioutil"
 
@@ -198,22 +199,45 @@ func submit(args []string) {
 	}
 
 	if len(args) != 2 {
-		fmt.Fprintf(os.Stderr, "Wrong number of arguments")
-		usageCmd("submit", 2)
+		_err("Wrong number of arguments")
 	}
 
-	id, err := client.Submit(args[0], args[1])
+	resp, err := client.Submit(args[0], args[1])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Submission error: %s\n", err)
-		os.Exit(2)
+		_err("Submission error: %s\n", err)
 	}
-	fmt.Printf("ID: %s\n", id)
+	if strings.HasPrefix(resp, "ERROR") {
+		_err("%s\n", resp)
+	}
+	id := resp
 
-	status, err := client.Status(id)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Cannot get status: %s\n", err)
-		os.Exit(2)
+	for {
+		status, err := client.Status(id)
+		if err != nil {
+			_err("Cannot get status: %s\n", err)
+		}
+		if status == "Resolved" {
+			break
+		}
+		fmt.Printf("\r                                         \r")
+		fmt.Printf("%s...", status)
+		time.Sleep(500 * time.Millisecond)
 	}
-	fmt.Printf("Status: %s\n", status)
-	
+
+	submissions, err := db.GetDB("submissions")
+	if err != nil {
+		_err("Cannot get 'submissions': %s\n", err)
+	}
+
+	var sub eval.Submission
+	_, err = submissions.Get(id, &sub)
+	if err != nil {
+		_err("Cannot get submission '%s': %s\n", id, err)
+	}
+
+	fmt.Printf("\r                                         \r")
+	fmt.Printf("%s\n\n", sub.Veredict.Message)
+	if sub.Veredict.Message != "Accepted" {
+		fmt.Printf("%s\n", sub.Veredict.Details.Obj)
+	}
 }

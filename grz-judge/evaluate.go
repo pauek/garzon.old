@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -87,6 +86,7 @@ func (E *Evaluator) handleSubmissions() {
 	for {
 		id, ok := <- Queue.Channel
 		if ! ok { break }
+		Queue.SetStatus(id, "In Process")
 		sub := Queue.Get(id)
 		var V eval.Veredict
 		log.Printf("Submitting '%s'", sub.Problem.Title)
@@ -95,6 +95,7 @@ func (E *Evaluator) handleSubmissions() {
 			log.Printf("\n\n%s\n\n", E.stderr.String())
 			log.Fatalf("Call failed: %s\n", err)
 		}
+		sub.Status = "Resolved"
 		sub.Resolved = time.Now()
 		sub.Veredict = V
 		sub.Problem = nil
