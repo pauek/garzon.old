@@ -2,7 +2,6 @@
 package eval
 
 import (
-	"log"
 	"time"
 	"encoding/gob"
 	"garzon/db"
@@ -39,10 +38,8 @@ type DirReader interface {
 type Eval bool
 
 func (E *Eval) Submit(S Submission, V *Veredict) error {
-	log.Printf("Received Problem: %+v\n", S.Problem)
 	ev := S.Problem.Evaluator.Obj.(Evaluator)
 	*V = ev.Evaluate(S.Problem, S.Solution)
-	log.Printf("Result: %+v\n", V)
 	return nil
 }
 

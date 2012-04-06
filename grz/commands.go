@@ -266,9 +266,9 @@ func submit(args []string) {
 	}
 
 	fmt.Printf("\r                                         \r")
-	fmt.Printf("%s\n\n", sub.Veredict.Message)
+	fmt.Printf("%s\n", sub.Veredict.Message)
 	if sub.Veredict.Message != "Accepted" {
-		fmt.Printf("%s\n", sub.Veredict.Details.Obj)
+		fmt.Printf("\n%s\n", sub.Veredict.Details.Obj)
 	}
 }
 

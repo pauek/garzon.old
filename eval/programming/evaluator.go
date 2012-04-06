@@ -109,7 +109,7 @@ func (C *context) MakeCommand() (cmd *exec.Cmd) {
 		args = append(args, "-a")
 	}
 	args = append(args, C.dir + "/eval")
-   cmd = exec.Command(os.Getenv("HOME") + "/grz-jail", args...)
+   cmd = exec.Command(GrzJail, args...)
 	cmd.Dir = C.ExecDir()
 	return
 }
@@ -124,12 +124,16 @@ func (C *context) Destroy() error {
 
 // Evaluator //////////////////////////////////////////////////
 
-var BaseDir string
-var KeepFiles bool
+var (
+	BaseDir   string  // base working directory 
+	KeepFiles bool    // keep files after evaluation (debug)
+	GrzJail   string  // path of grz-jail
+)
 
 func init() {
    BaseDir   = os.Getenv("HOME")
 	KeepFiles = false
+	GrzJail   = "grz-jail" // assume its in the PATH
 }
 
 func (E Evaluator) Evaluate(P *eval.Problem, Solution string) eval.Veredict {

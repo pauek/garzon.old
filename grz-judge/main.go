@@ -87,6 +87,9 @@ func init() {
 }
 
 func parseUserHost(userhost string) (user, host string) {
+	if userhost == "local" {
+		return "", "local"
+	}
 	parts := strings.Split(userhost, "@")
 	if len(parts) != 2 {
 		log.Fatal("Wrong user@host = '%s'\n", userhost)
