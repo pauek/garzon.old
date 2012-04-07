@@ -173,6 +173,20 @@ func status(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func veredict(w http.ResponseWriter, req *http.Request) {
+	id := req.URL.Path[len("/veredict/"):]
+	var sub eval.Submission
+	_, err := submissions.Get(id, &sub)
+	if err != nil {
+		fmt.Fprintf(w, "Cannot get submission '%s': %s\n", id, err)
+		return
+	}
+	fmt.Fprintf(w, "%s\n", sub.Veredict.Message)
+	if sub.Veredict.Message != "Accepted" {
+		fmt.Fprintf(w, "\n%s\n", sub.Veredict.Details.Obj)
+	}
+}
+
 var debugMode, copyFiles bool
 
 func main() {
@@ -183,8 +197,9 @@ func main() {
 
 	Queue.Init()
 	launchEvaluators(accounts)
-	http.HandleFunc("/submit/", submit)
-	http.HandleFunc("/status/", status)
+	http.HandleFunc("/submit/",   submit)
+	http.HandleFunc("/status/",   status)
+	http.HandleFunc("/veredict/", veredict)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", ListenPort), nil)
 	if err != nil {
 		log.Printf("ListenAndServe: %s\n", err)

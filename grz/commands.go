@@ -254,22 +254,11 @@ func submit(args []string) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	submissions, err := db.GetDB("submissions")
+	veredict, err := client.Veredict(id)
 	if err != nil {
-		_errx("Cannot get 'submissions': %s\n", err)
+		_errx("Cannot get veredict: %s\n", err)
 	}
-
-	var sub eval.Submission
-	_, err = submissions.Get(id, &sub)
-	if err != nil {
-		_errx("Cannot get submission '%s': %s\n", id, err)
-	}
-
-	fmt.Printf("\r                                         \r")
-	fmt.Printf("%s\n", sub.Veredict.Message)
-	if sub.Veredict.Message != "Accepted" {
-		fmt.Printf("\n%s\n", sub.Veredict.Details.Obj)
-	}
+	fmt.Print(veredict)
 }
 
 func delette(args []string) {

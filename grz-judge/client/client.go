@@ -64,3 +64,17 @@ func Status(subid string) (status string, err error) {
 	defer resp.Body.Close()
 	return firstLine(resp.Body)
 }
+
+func Veredict(subid string) (veredict string, err error) {
+	url := fmt.Sprintf("%s/veredict/%s", JudgeUrl, subid)
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", fmt.Errorf("Cannot GET: %s\n", err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("Cannot read response body: %s\n", err)
+	}
+	return string(body), nil
+}
