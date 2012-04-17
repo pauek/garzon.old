@@ -10,7 +10,8 @@ import (
 	"strings"
 	"net/http"
 	"io/ioutil"
-
+	"encoding/json"
+	
 	"garzon/db"
 	"garzon/eval"
 	prog "garzon/eval/programming"
@@ -38,11 +39,11 @@ func (S *Submissions) Pending() int {
 	return len(S.inprogress)
 }
 
-func (S *Submissions) Add(ProblemID string, Problem *eval.Problem, Solution string) (ID string) {
+func (S *Submissions) Add(PID string, Problem *eval.Problem, Solution string) (ID string) {
 	ID = db.NewUUID()
 	S.Mutex.Lock()
 	S.inprogress[ID] = &eval.Submission{
-	   ProblemID: ProblemID, 
+	   ProblemID: PID, 
 		Problem:   Problem,
 		Solution:  Solution,
 		Submitted: time.Now(),
@@ -66,7 +67,9 @@ func (S *Submissions) SetStatus(id, state string) {
 }
 
 func (S *Submissions) Delete(id string) {
+	S.Mutex.Lock()
 	delete(S.inprogress, id)
+	S.Mutex.Unlock()
 }
 
 var Queue Submissions
@@ -155,6 +158,50 @@ func submit(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
+func test(w http.ResponseWriter, req *http.Request) {
+	log.Printf("New test: %s\n", req.FormValue("id"))
+	if req.Method != "POST" {
+		fmt.Fprintf(w, "ERROR: Wrong method")
+		return
+	}
+	if Queue.Pending() > MaxQueueSize {
+		fmt.Fprint(w, "ERROR: Server too busy")
+		return
+	}
+
+	// Get the problem
+	pfile, _, err := req.FormFile("problem")
+	if err != nil {
+		fmt.Fprintf(w, "Cannot get problem file")
+		return
+	}
+	data, err := ioutil.ReadAll(pfile)
+	if err != nil {
+		fmt.Fprint(w, "Cannot read problem file")
+		return
+	}
+	var problem eval.Problem
+	if err := json.Unmarshal(data, &problem); err != nil {
+		fmt.Fprintf(w, "test: json.Unmarshal error: %s\n", err)
+		return 
+	}
+
+	// Get solution
+	sfile, _, err := req.FormFile("solution")
+	if err != nil {
+		fmt.Fprint(w, "Cannot get solution file")
+		return
+	}
+	solution, err := ioutil.ReadAll(sfile)
+	if err != nil {
+		fmt.Fprint(w, "Cannot read solution file")
+		return
+	}
+	ID := Queue.Add("<test>", &problem, string(solution))
+	fmt.Fprintf(w, "%s", ID)
+	return
+}
+
 func status(w http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[len("/status/"):]
 	sub := Queue.Get(id)
@@ -200,6 +247,7 @@ func main() {
 	http.HandleFunc("/submit/",   submit)
 	http.HandleFunc("/status/",   status)
 	http.HandleFunc("/veredict/", veredict)
+	http.HandleFunc("/test/",     test)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", ListenPort), nil)
 	if err != nil {
 		log.Printf("ListenAndServe: %s\n", err)

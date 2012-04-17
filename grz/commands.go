@@ -5,9 +5,11 @@ import (
 	"os"
 	"fmt"
 	"flag"
+	"path/filepath"
 	"time"
 	"strings"
 	"io/ioutil"
+	"encoding/json"
 
 	"garzon/db"
 	"garzon/eval"
@@ -19,15 +21,13 @@ import (
 const u_add = `grz add [options] <directory>
 
 Options:
-  --path    Colon-separated list of directories to consider 
-            as roots
+  --path    Problem root directory
 
 `
 const u_update = `grz update [options] <directory>
 
 Options:
-  --path    Colon-separated list of directories to consider 
-            as roots
+  --path    Problem root directory
 
 `
 const u_delete = `grz delete <ProblemID>
@@ -36,6 +36,13 @@ const u_submit = `grz submit [options] <ProblemID> <filename>
 
 Options:
   --judge    URL for the judge
+
+`
+const u_test = `grz test <directory> <filename>
+
+Options:
+  --judge   URL for the judge
+  --path    Problem root directory
 
 `
 
@@ -49,15 +56,17 @@ func help(args []string) {
 }
 
 func help1(cmd string) {
-	C, ok := commands[cmd]
-	if ! ok {
-		_errx("unknown command '%s'\n", cmd)
+	for _, C := range commands {
+		if C.name == cmd {
+			fmt.Print(C.usage)
+			return
+		}
 	}
-	fmt.Print(C.usage)
+	_errx("unknown command '%s'\n", cmd)
 }
 
 
-var addPath string
+var Path string
 
 func init() {
 	prog.Register()
@@ -65,14 +74,14 @@ func init() {
 
 func addParseFlags(args []string) string {
 	fset := flag.NewFlagSet("add", flag.ExitOnError)
-	fset.StringVar(&addPath, "path", "", "Problem path (colon separated)")
+	fset.StringVar(&Path, "path", "", "Problem path (colon separated)")
 	fset.Parse(args)
 
-	if addPath == "" {
-		addPath = os.Getenv("GRZ_PATH")
+	if Path == "" {
+		Path = os.Getenv("GRZ_PATH")
 	}
 	
-	// TODO: Check that no path in 'addPath' is prefix of the others!
+	// TODO: Check that no path in 'Path' is prefix of the others!
 	args = fset.Args()
 	if len(args) != 1 {
 		_err("Wrong number of arguments")
@@ -119,11 +128,11 @@ func readProblem(dir string) (id string, Problem *eval.Problem) {
 	}
 
 	// Find the root
-	if addPath == "" {
+	if Path == "" {
 		_errx("No roots specified")
 	}
 	var root, relative string
-	for _, path := range splitPath(addPath) {
+	for _, path := range splitPath(Path) {
 		if len(path) == 0 || path[0] != '/' {
 			_errx("path '%s' is not absolute", path)
 		}
@@ -258,6 +267,7 @@ func submit(args []string) {
 	if err != nil {
 		_errx("Cannot get veredict: %s\n", err)
 	}
+	fmt.Printf("\r                                         \r")
 	fmt.Print(veredict)
 }
 
@@ -296,4 +306,65 @@ func delette(args []string) {
 	}
 
 	fmt.Printf("Problem '%s' deleted\n", id)
+}
+
+func test(args []string) {
+	var url string
+	fset := flag.NewFlagSet("add", flag.ExitOnError)
+	fset.StringVar(&Path, "path", "", "Problem root directory")
+	fset.StringVar(&url, "judge", "", "URL for the Judge")
+	fset.Parse(args)
+	if Path == "" {
+		Path = os.Getenv("GRZ_PATH")
+	}
+	if url != "" {
+		client.JudgeUrl = url
+	}
+	args = fset.Args()
+	if len(args) != 2 {
+		_err("Wrong number of arguments")
+		usageCmd("test", 2)
+	}
+	
+	dir, filename := args[0], args[1]
+	
+	directory, err := filepath.Abs(dir)
+	if err != nil {
+		_errx("Error with dir '%s': %s\n", err)
+	}
+	_, problem := readProblem(directory)
+	json, err := json.Marshal(problem)
+	if err != nil {
+		_errx("cannot Marshal: %s\n", err)
+	}
+
+	// send to judge
+	resp, err := client.Test(string(json), filename)
+	if err != nil {
+		_errx("test error: %s\n", err)
+	}
+	if strings.HasPrefix(resp, "ERROR") {
+		_errx("%s\n", resp)
+	}
+	id := resp
+
+	for {
+		status, err := client.Status(id)
+		if err != nil {
+			_errx("Cannot get status: %s\n", err)
+		}
+		if status == "Resolved" {
+			break
+		}
+		fmt.Printf("\r                                         \r")
+		fmt.Printf("%s...", status)
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	veredict, err := client.Veredict(id)
+	if err != nil {
+		_errx("Cannot get veredict: %s\n", err)
+	}
+	fmt.Printf("\r                                         \r")
+	fmt.Print(veredict)
 }

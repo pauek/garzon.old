@@ -136,6 +136,7 @@ func (E *Evaluator) HandleSubmissions() {
 		}
 		log.Printf("Saved submission '%s'\n", id)
 		fmt.Printf("\nREMOTE:\n%s\nLOCAL:\n", E.stderr.String())
+		E.stderr.Reset() // FIXME: se corta o algo
 		Queue.Delete(id)
 	}
 }

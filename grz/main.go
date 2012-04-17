@@ -7,31 +7,48 @@ import (
 )
 
 type Command struct {
+	name  string
 	help  string
 	usage string
 	function func(args []string)	
 }
 
-var commands map[string]*Command
+var commands []*Command
 
 func init() {
-	commands = map[string]*Command{
-		"help":   &Command{``, "", help},
-		"add":    &Command{`Add a problem to the Database`,    u_add,    add},
-		"update": &Command{`Update a problem in the Database`, u_update, update},
-		"delete": &Command{`Delete a problem in the Database`, u_delete, delette},
-		"submit": &Command{`Submit a problem to the judge`,    u_submit, submit},
+	commands = []*Command{
+		&Command{"add",    `Add a problem to the Database`,    u_add,    add},
+		&Command{"test",   `Test a problem`,                   u_test,   test},
+		&Command{"update", `Update a problem in the Database`, u_update, update},
+		&Command{"delete", `Delete a problem in the Database`, u_delete, delette},
+		&Command{"submit", `Submit a problem to the judge`,    u_submit, submit},
+		&Command{"help", ``, "", help},
 	}
 }
 
 const _usage_header = "usage: grz <command> [<args>]\n\nCommands:\n"
-const _usage_footer= "\nSee 'grz help <command>' for more information.\n"
+const _usage_footer= `
+Environment: 
+  GRZ_PATH    List of colon-separated roots for problems
+  GRZ_JUDGE   URL (including port) of the Judge
+
+See 'grz help <command>' for more information.
+`
+
+func findCmd(cmd string) *Command {
+	for _, C := range commands {
+		if C.name == cmd {
+			return C
+		}
+	}
+	return nil
+}
 
 func usage(exitcode int) {
 	fmt.Fprint(os.Stderr, _usage_header)
-	for id, cmd := range commands {
-		if id != "help" {
-			fmt.Fprintf(os.Stderr, "  %-10s%s\n", id, cmd.help)
+	for _, cmd := range commands {
+		if cmd.name != "help" {
+			fmt.Fprintf(os.Stderr, "  %-12s%s\n", cmd.name, cmd.help)
 		}
 	}
 	fmt.Fprint(os.Stderr, _usage_footer)
@@ -39,7 +56,11 @@ func usage(exitcode int) {
 }
 
 func usageCmd(cmd string, exitcode int) {
-	fmt.Fprint(os.Stderr, commands[cmd].usage)
+	C := findCmd(cmd)
+	if C == nil {
+		panic(fmt.Sprintf("command '%s' not found", cmd))
+	}
+	fmt.Fprint(os.Stderr, C.usage)
 	os.Exit(exitcode)
 }
 
@@ -48,7 +69,7 @@ func main() {
 		usage(2)
 	}
 	cmd := os.Args[1]
-	if C, ok := commands[cmd]; ok {
+	if C := findCmd(cmd); C != nil {
 		C.function(os.Args[2:])
 	} else {
 		if cmd == "--help" {
