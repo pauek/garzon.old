@@ -92,11 +92,14 @@ func (E *Evaluator) StartLocalProcess() {
 	log.Printf("Executing 'grz-eval' locally\n")
 	grzjail := E.location["grz-jail"]
 	port := fmt.Sprintf("%d", E.port)
+	args := []string{"-p", port, "-j", grzjail}
 	if debugMode { 
-		E.cmd = exec.Command("grz-eval", "-p", port, "-k", "-j", grzjail)
-	} else {
-		E.cmd = exec.Command("grz-eval", "-p", port, "-j", grzjail)
+		args = append(args, "-k")
 	}
+	if localMode {
+		args = append(args, "-t")
+	}
+	E.cmd = exec.Command("grz-eval", args...)
 	E.cmd.Stderr = &E.stderr
 	if err := E.cmd.Start(); err != nil {
 		log.Fatalf("Couldn't run 'grz-eval' locally: %s\n", err)
@@ -133,7 +136,6 @@ func (E *Evaluator) HandleSubmissions() {
 		sub.Problem = nil
 		fmt.Printf("\nREMOTE:\n%s\nLOCAL:\n", E.stderr.String())
 		E.stderr.Reset() // FIXME: se corta o algo
-		Queue.Delete(id)
 	}
 }
 

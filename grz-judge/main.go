@@ -66,6 +66,27 @@ func waitForEvaluators() {
 	}
 }
 
+func getProblem(probid string) (P *eval.Problem, err error) {
+	if !localMode {
+		var problem eval.Problem
+		_, err = problems.Get(probid, &problem)
+		return &problem, nil
+	}
+	problem, err := eval.ReadFromID(probid)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't read problem '%s': %s\n", probid, err)
+	}
+	return problem, nil
+}
+
+func login(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprintf(w, "Unimplemented")
+}
+
+func logout(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprintf(w, "Unimplemented")
+}
+
 func submit(w http.ResponseWriter, req *http.Request) {
 	log.Printf("New submission: %s\n", req.FormValue("id"))
 	if req.Method != "POST" {
@@ -76,22 +97,23 @@ func submit(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprint(w, "ERROR: Server too busy")
 		return
 	}
-	probid := req.FormValue("id")
-	var problem eval.Problem
-	_, err := problems.Get(probid, &problem)
+	id := req.FormValue("id")
+	problem, err := getProblem(id)
 	if err != nil {
-		fmt.Fprintf(w, "ERROR: Problem '%s' not found", probid)
+		fmt.Fprintf(w, "ERROR: %s\n", err)
 		return
 	}
 	file, _, err := req.FormFile("solution")
 	if err != nil {
-		fmt.Fprint(w, "Cannot get solution file")
+		fmt.Fprint(w, "ERROR: Cannot get solution file")
+		return
 	}
 	solution, err := ioutil.ReadAll(file)
 	if err != nil {
-		fmt.Fprint(w, "Cannot read solution file")
+		fmt.Fprint(w, "ERROR: Cannot read solution file")
+		return
 	}
-	ID := Queue.Add(probid, &problem, string(solution))
+	ID := Queue.Add(id, problem, string(solution))
 	fmt.Fprintf(w, "%s", ID)
 	return
 }
@@ -120,29 +142,46 @@ func veredict(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-var debugMode, copyFiles bool
+var (
+	copyFiles bool
+	debugMode bool
+	localMode bool
+	openMode  bool
+)
 
-const usage = `usage: grz-judge [options...] <accounts>*
+const usage = `usage: grz-judge [options...] [accounts...]
 
 Options:
    --copy,    Copy files to remote accounts
-   --debug,   Enable debug mode
-
+   --debug,   Show debug information
+   --local,   Local mode (read files, don't touch DB)
+   --open,    Open mode (anyone can submit, submissions not stored)
+					
 `
 
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, usage)
 	}
-	flag.BoolVar(&copyFiles, "copy", false, "Copy files to remote accounts")
-	flag.BoolVar(&debugMode, "debug", false, "Enable debug mode")
+	flag.BoolVar(&copyFiles, "copy", false, "")
+	flag.BoolVar(&debugMode, "debug", false, "")
+	flag.BoolVar(&localMode, "local", false, "")
+	flag.BoolVar(&openMode, "open", false, "")
 	flag.Parse()
-	accounts := flag.Args()
 
-	getDBs()
+	accounts := flag.Args()
+	if len(accounts) == 0 {
+		accounts = []string{"local"}
+	}
+
+	if !localMode {
+		getDBs()
+	}
 
 	Queue.Init()
 	launchEvaluators(accounts)
+	http.HandleFunc("/login/", login)
+	http.HandleFunc("/logout/", logout)
 	http.HandleFunc("/submit/", submit)
 	http.HandleFunc("/status/", status)
 	http.HandleFunc("/veredict/", veredict)
