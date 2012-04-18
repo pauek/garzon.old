@@ -20,7 +20,6 @@ func init() {
 
 	commands = []*Command{
 		&Command{"add", `Add a problem to the Database`, u_add, add},
-		&Command{"test", `Test a problem`, u_test, test},
 		&Command{"update", `Update a problem in the Database`, u_update, update},
 		&Command{"delete", `Delete a problem in the Database`, u_delete, delette},
 		&Command{"submit", `Submit a problem to the judge`, u_submit, submit},
