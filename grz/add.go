@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"flag"
-	"path/filepath"
 	"garzon/db"
+	"garzon/eval"
+	"path/filepath"
 )
 
 const u_add = `grz add [options] <directory>
@@ -19,13 +19,16 @@ func add(args []string) {
 	fset := flag.NewFlagSet("add", flag.ExitOnError)
 	fset.StringVar(&path, "path", "", "Problem path (colon separated)")
 	fset.Parse(args)
-	setGrzPath(path)
 
 	dir := filepath.Clean(checkOneArg("add", fset.Args()))
-	fmt.Printf("dir: %s\n", dir)
-	return
-	
-	id, Problem := readProblem(dir)
+
+	if path != "" {
+		eval.GrzPath = path
+	}
+	id, Problem, err := eval.ReadFromDir(dir)
+	if err != nil {
+		_errx("Cannot read problem at '%s': %s\n", dir, err)
+	}
 
 	// Store in the database
 	problems, err := db.GetOrCreateDB("problems")

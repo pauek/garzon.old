@@ -29,7 +29,7 @@ const _usage_header = "usage: grz <command> [<args>]\n\nCommands:\n"
 const _usage_footer = `
 Environment: 
   GRZ_PATH    List of colon-separated roots for problems
-  GRZ_JUDGE   URL (including port) of the Judge
+  GRZ_JUDGE   URL of the Judge (including port)
 
 See 'grz help <command>' for more information.
 `

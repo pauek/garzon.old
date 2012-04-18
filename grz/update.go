@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"garzon/db"
+	"garzon/eval"
 	"path/filepath"
 )
 
@@ -15,14 +16,19 @@ Options:
 
 func update(args []string) {
 	var path string
-	fset := flag.NewFlagSet("add", flag.ExitOnError)
+	fset := flag.NewFlagSet("update", flag.ExitOnError)
 	fset.StringVar(&path, "path", "", "Problem path (colon separated)")
 	fset.Parse(args)
-	setGrzPath(path)
 
-	dir := filepath.Clean(checkOneArg("add", fset.Args()))
+	dir := filepath.Clean(checkOneArg("update", fset.Args()))
 
-	id, Problem := readProblem(dir)
+	if path != "" {
+		eval.GrzPath = path
+	}
+	id, Problem, err := eval.ReadFromDir(dir)
+	if err != nil {
+		_errx("Cannot read problem at '%s': %s\n", dir, err)
+	}
 
 	// Store in the database
 	problems, err := db.GetOrCreateDB("problems")
