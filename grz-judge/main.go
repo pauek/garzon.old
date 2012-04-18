@@ -19,17 +19,12 @@ const MaxQueueSize = 50
 
 var Queue Submissions
 var problems *db.Database
-var submissions *db.Database
 
-func init() {
+func getDBs() {
 	var err error
 	problems, err = db.GetDB("problems")
 	if err != nil {
 		log.Fatalf("Cannot get database 'problems': %s\n", err)
-	}
-	submissions, err = db.GetOrCreateDB("submissions")
-	if err != nil {
-		log.Fatalf("Cannot get database 'submissions': %s\n", err)
 	}
 }
 
@@ -107,13 +102,6 @@ func status(w http.ResponseWriter, req *http.Request) {
 	if sub != nil {
 		fmt.Fprintf(w, "%s", sub.Status)
 		return
-	}
-	rev, err := submissions.Rev(id)
-	if err != nil {
-		log.Printf("Cannot query submission '%s'\n", id)
-	}
-	if rev != "" {
-		fmt.Fprint(w, "Resolved\n")
 	} else {
 		fmt.Fprint(w, "Not found\n")
 	}
@@ -121,15 +109,14 @@ func status(w http.ResponseWriter, req *http.Request) {
 
 func veredict(w http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[len("/veredict/"):]
-	var sub eval.Submission
-	_, err := submissions.Get(id, &sub)
-	if err != nil {
-		fmt.Fprintf(w, "Cannot get submission '%s': %s\n", id, err)
-		return
-	}
-	fmt.Fprintf(w, "%s\n", sub.Veredict.Message)
-	if sub.Veredict.Message != "Accepted" {
-		fmt.Fprintf(w, "\n%s\n", sub.Veredict.Details.Obj)
+	sub := Queue.Get(id)
+	if sub != nil {
+		fmt.Fprintf(w, "%s\n", sub.Veredict.Message)
+		if sub.Veredict.Message != "Accepted" {
+			fmt.Fprintf(w, "\n%s\n", sub.Veredict.Details.Obj)
+		}
+	} else {
+		fmt.Fprint(w, "Not found\n")
 	}
 }
 
@@ -151,6 +138,8 @@ func main() {
 	flag.BoolVar(&debugMode, "debug", false, "Enable debug mode")
 	flag.Parse()
 	accounts := flag.Args()
+
+	getDBs()
 
 	Queue.Init()
 	launchEvaluators(accounts)

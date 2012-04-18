@@ -131,10 +131,6 @@ func (E *Evaluator) HandleSubmissions() {
 		sub.Resolved = time.Now()
 		sub.Veredict = V
 		sub.Problem = nil
-		if err = submissions.Put(id, &sub); err != nil {
-			log.Fatalf("Cannot save submission in database: %s\n", err)
-		}
-		log.Printf("Saved submission '%s'\n", id)
 		fmt.Printf("\nREMOTE:\n%s\nLOCAL:\n", E.stderr.String())
 		E.stderr.Reset() // FIXME: se corta o algo
 		Queue.Delete(id)
