@@ -1,33 +1,35 @@
-
 package main
 
 import (
-	"os"
 	"fmt"
+	prog "garzon/eval/programming"
+	"os"
 )
 
 type Command struct {
-	name  string
-	help  string
-	usage string
-	function func(args []string)	
+	name     string
+	help     string
+	usage    string
+	function func(args []string)
 }
 
 var commands []*Command
 
 func init() {
+	prog.Register()
+
 	commands = []*Command{
-		&Command{"add",    `Add a problem to the Database`,    u_add,    add},
-		&Command{"test",   `Test a problem`,                   u_test,   test},
+		&Command{"add", `Add a problem to the Database`, u_add, add},
+		&Command{"test", `Test a problem`, u_test, test},
 		&Command{"update", `Update a problem in the Database`, u_update, update},
 		&Command{"delete", `Delete a problem in the Database`, u_delete, delette},
-		&Command{"submit", `Submit a problem to the judge`,    u_submit, submit},
+		&Command{"submit", `Submit a problem to the judge`, u_submit, submit},
 		&Command{"help", ``, "", help},
 	}
 }
 
 const _usage_header = "usage: grz <command> [<args>]\n\nCommands:\n"
-const _usage_footer= `
+const _usage_footer = `
 Environment: 
   GRZ_PATH    List of colon-separated roots for problems
   GRZ_JUDGE   URL (including port) of the Judge
