@@ -36,7 +36,7 @@ type VeredictDetails struct {
 	Results []TestResult
 }
 
-func (vd *VeredictDetails) String() string {
+func (vd VeredictDetails) String() string {
 	var b bytes.Buffer
 	for i, r := range vd.Results {
 		fmt.Fprintf(&b, "%d. %s\n", i, r)
