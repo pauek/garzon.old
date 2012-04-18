@@ -6,7 +6,7 @@ import (
 	"garzon/db"
 )
 
-func Register() {
+func init() {
 	db.Register("prog.Evaluator",       Evaluator{})
 	db.Register("prog.VeredictDetails", VeredictDetails{})
 	db.Register("prog.test.Input",      InputTester{})

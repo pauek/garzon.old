@@ -1,76 +1,21 @@
-
 package main
 
 import (
-	"fmt"
-	"log"
 	"flag"
-	"sync"
-	"time"
-	"strings"
-	"net/http"
+	"fmt"
 	"io/ioutil"
-	"encoding/json"
-	
+	"log"
+	"net/http"
+	"os"
+	"strings"
+
 	"garzon/db"
 	"garzon/eval"
-	prog "garzon/eval/programming"
+	_ "garzon/eval/programming"
 )
 
 const ListenPort = 50000
 const MaxQueueSize = 50
-
-type Submissions struct {
-	Channel chan string
-	Mutex   sync.Mutex
-	inprogress map[string]*eval.Submission
-}
-
-func (S *Submissions) Init() {
-	S.inprogress = make(map[string]*eval.Submission)
-	S.Channel    = make(chan string, MaxQueueSize)
-}
-
-func (S *Submissions) Close() { 
-	close(S.Channel) 
-}
-
-func (S *Submissions) Pending() int {
-	return len(S.inprogress)
-}
-
-func (S *Submissions) Add(PID string, Problem *eval.Problem, Solution string) (ID string) {
-	ID = db.NewUUID()
-	S.Mutex.Lock()
-	S.inprogress[ID] = &eval.Submission{
-	   ProblemID: PID, 
-		Problem:   Problem,
-		Solution:  Solution,
-		Submitted: time.Now(),
-		Status:    "In Queue",
-	}
-	S.Mutex.Unlock()
-	S.Channel <- ID
-	return
-}
-
-func (S *Submissions) Get(id string) (sub *eval.Submission) {
-	sub, ok := S.inprogress[id]
-	if ! ok { sub = nil }
-	return
-}
-
-func (S *Submissions) SetStatus(id, state string) {
-	S.Mutex.Lock()
-	S.inprogress[id].Status = state
-	S.Mutex.Unlock()
-}
-
-func (S *Submissions) Delete(id string) {
-	S.Mutex.Lock()
-	delete(S.inprogress, id)
-	S.Mutex.Unlock()
-}
 
 var Queue Submissions
 var problems *db.Database
@@ -78,7 +23,6 @@ var submissions *db.Database
 
 func init() {
 	var err error
-	prog.Register()
 	problems, err = db.GetDB("problems")
 	if err != nil {
 		log.Fatalf("Cannot get database 'problems': %s\n", err)
@@ -100,7 +44,6 @@ func parseUserHost(userhost string) (user, host string) {
 	return parts[0], parts[1]
 }
 
-
 var done chan bool
 var evaluators []*Evaluator
 
@@ -114,7 +57,7 @@ func launchEvaluators(accounts []string) {
 	for i, acc := range accounts {
 		user, host := parseUserHost(acc)
 		evaluators[i] = &Evaluator{
-			user: user, 
+			user: user,
 			host: host,
 			port: ListenPort + 1 + i,
 		}
@@ -124,7 +67,7 @@ func launchEvaluators(accounts []string) {
 
 func waitForEvaluators() {
 	for i := 0; i < len(evaluators); i++ {
-		<- done
+		<-done
 	}
 }
 
@@ -154,50 +97,6 @@ func submit(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprint(w, "Cannot read solution file")
 	}
 	ID := Queue.Add(probid, &problem, string(solution))
-	fmt.Fprintf(w, "%s", ID)
-	return
-}
-
-func test(w http.ResponseWriter, req *http.Request) {
-	log.Printf("New test: %s\n", req.FormValue("id"))
-	if req.Method != "POST" {
-		fmt.Fprintf(w, "ERROR: Wrong method")
-		return
-	}
-	if Queue.Pending() > MaxQueueSize {
-		fmt.Fprint(w, "ERROR: Server too busy")
-		return
-	}
-
-	// Get the problem
-	pfile, _, err := req.FormFile("problem")
-	if err != nil {
-		fmt.Fprintf(w, "Cannot get problem file")
-		return
-	}
-	data, err := ioutil.ReadAll(pfile)
-	if err != nil {
-		fmt.Fprint(w, "Cannot read problem file")
-		return
-	}
-	var problem eval.Problem
-	if err := json.Unmarshal(data, &problem); err != nil {
-		fmt.Fprintf(w, "test: json.Unmarshal error: %s\n", err)
-		return 
-	}
-
-	// Get solution
-	sfile, _, err := req.FormFile("solution")
-	if err != nil {
-		fmt.Fprint(w, "Cannot get solution file")
-		return
-	}
-	solution, err := ioutil.ReadAll(sfile)
-	if err != nil {
-		fmt.Fprint(w, "Cannot read solution file")
-		return
-	}
-	ID := Queue.Add("<test>", &problem, string(solution))
 	fmt.Fprintf(w, "%s", ID)
 	return
 }
@@ -236,18 +135,28 @@ func veredict(w http.ResponseWriter, req *http.Request) {
 
 var debugMode, copyFiles bool
 
+const usage = `usage: grz-judge [options...] <accounts>*
+
+Options:
+   --copy,    Copy files to remote accounts
+   --debug,   Enable debug mode
+
+`
+
 func main() {
-	flag.BoolVar(&copyFiles, "copy",  false, "Copy files to remote accounts")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, usage)
+	}
+	flag.BoolVar(&copyFiles, "copy", false, "Copy files to remote accounts")
 	flag.BoolVar(&debugMode, "debug", false, "Enable debug mode")
 	flag.Parse()
 	accounts := flag.Args()
 
 	Queue.Init()
 	launchEvaluators(accounts)
-	http.HandleFunc("/submit/",   submit)
-	http.HandleFunc("/status/",   status)
+	http.HandleFunc("/submit/", submit)
+	http.HandleFunc("/status/", status)
 	http.HandleFunc("/veredict/", veredict)
-	http.HandleFunc("/test/",     test)
 	err := http.ListenAndServe(fmt.Sprintf(":%d", ListenPort), nil)
 	if err != nil {
 		log.Printf("ListenAndServe: %s\n", err)

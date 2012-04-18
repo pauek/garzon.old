@@ -16,7 +16,6 @@ import (
 
 func init() {
 	rpc.Register(new(eval.Eval))
-	prog.Register()
 }
 
 const usage = `usage: grz-eval [options...]

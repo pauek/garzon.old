@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	prog "garzon/eval/programming"
+	_ "garzon/eval/programming"
 	"os"
 )
 
@@ -16,8 +16,6 @@ type Command struct {
 var commands []*Command
 
 func init() {
-	prog.Register()
-
 	commands = []*Command{
 		&Command{"add", `Add a problem to the Database`, u_add, add},
 		&Command{"update", `Update a problem in the Database`, u_update, update},
