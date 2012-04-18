@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"flag"
+	"path/filepath"
 	"garzon/db"
 )
 
@@ -12,8 +15,16 @@ Options:
 `
 
 func add(args []string) {
-	dir := addParseFlags(args)
+	var path string
+	fset := flag.NewFlagSet("add", flag.ExitOnError)
+	fset.StringVar(&path, "path", "", "Problem path (colon separated)")
+	fset.Parse(args)
+	setGrzPath(path)
 
+	dir := filepath.Clean(checkOneArg("add", fset.Args()))
+	fmt.Printf("dir: %s\n", dir)
+	return
+	
 	id, Problem := readProblem(dir)
 
 	// Store in the database

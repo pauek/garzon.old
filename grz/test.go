@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -21,24 +20,16 @@ Options:
 `
 
 func test(args []string) {
-	var url string
-	fset := flag.NewFlagSet("add", flag.ExitOnError)
-	fset.StringVar(&Path, "path", "", "Problem root directory")
+	var path, url string
+	fset := flag.NewFlagSet("test", flag.ExitOnError)
+	fset.StringVar(&path, "path", "", "Problem root directory")
 	fset.StringVar(&url, "judge", "", "URL for the Judge")
 	fset.Parse(args)
-	if Path == "" {
-		Path = os.Getenv("GRZ_PATH")
-	}
+	setGrzPath(path)
 	if url != "" {
 		client.JudgeUrl = url
 	}
-	args = fset.Args()
-	if len(args) != 2 {
-		_err("Wrong number of arguments")
-		usageCmd("test", 2)
-	}
-
-	dir, filename := args[0], args[1]
+	dir, filename := checkTwoArgs("test", fset.Args())
 
 	directory, err := filepath.Abs(dir)
 	if err != nil {

@@ -10,12 +10,8 @@ const u_delete = `grz delete <ProblemID>
 `
 
 func delette(args []string) {
-	if len(args) != 1 {
-		_err("Wrong number of arguments")
-		usageCmd("delete", 2)
-	}
+	id := checkOneArg("delete", args)
 
-	id := args[0]
 	problems, err := db.GetDB("problems")
 	if err != nil {
 		_errx("Cannot get db 'problems': %s\n", err)

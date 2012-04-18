@@ -26,11 +26,9 @@ func submit(args []string) {
 		client.JudgeUrl = url
 	}
 
-	if len(args) != 2 {
-		_errx("Wrong number of arguments")
-	}
+	probid, filename := checkTwoArgs("submit", fset.Args())
 
-	resp, err := client.Submit(args[0], args[1])
+	resp, err := client.Submit(probid, filename)
 	if err != nil {
 		_errx("Submission error: %s\n", err)
 	}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"garzon/db"
 	"garzon/eval"
@@ -19,30 +18,31 @@ func _errx(format string, args ...interface{}) {
 	os.Exit(2)
 }
 
-var Path string
-
-func addParseFlags(args []string) string {
-	fset := flag.NewFlagSet("add", flag.ExitOnError)
-	fset.StringVar(&Path, "path", "", "Problem path (colon separated)")
-	fset.Parse(args)
-
-	if Path == "" {
-		Path = os.Getenv("GRZ_PATH")
-	}
-
-	// TODO: Check that no path in 'Path' is prefix of the others!
-	args = fset.Args()
-	if len(args) != 1 {
+func checkNArgs(n int, cmd string, iargs []string) (oargs []string) {
+	if len(iargs) != n {
 		_err("Wrong number of arguments")
-		usageCmd("add", 2)
+		usageCmd(cmd, 2)
 	}
+	return iargs
+}
 
-	// remove trailing '/'
-	dir := args[0]
-	if dir[len(dir)-1] == '/' {
-		dir = dir[:len(dir)-1]
+func checkOneArg(cmd string, args []string) string {
+	return checkNArgs(1, cmd, args)[0]
+}
+
+func checkTwoArgs(cmd string, iargs []string) (a, b string) {
+	oargs := checkNArgs(2, cmd, iargs)
+	return oargs[0], oargs[1]
+}
+
+var GrzPath string
+
+func setGrzPath(path string) {
+	GrzPath = path
+	if GrzPath == "" {
+		// TODO: Check that no path in 'GrzPath' is prefix of the others!
+		GrzPath = os.Getenv("GRZ_PATH")
 	}
-	return dir
 }
 
 func splitPath(pathstr string) (path []string) {
@@ -90,11 +90,11 @@ func readProblem(dir string) (id string, Problem *eval.Problem) {
 	}
 
 	// Find the root
-	if Path == "" {
+	if GrzPath == "" {
 		_errx("No roots specified")
 	}
 	var root, relative string
-	for _, path := range splitPath(Path) {
+	for _, path := range splitPath(GrzPath) {
 		if len(path) == 0 || path[0] != '/' {
 			_errx("path '%s' is not absolute", path)
 		}

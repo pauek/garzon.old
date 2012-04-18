@@ -1,7 +1,9 @@
 package main
 
 import (
+	"flag"
 	"garzon/db"
+	"path/filepath"
 )
 
 const u_update = `grz update [options] <directory>
@@ -12,7 +14,13 @@ Options:
 `
 
 func update(args []string) {
-	dir := addParseFlags(args)
+	var path string
+	fset := flag.NewFlagSet("add", flag.ExitOnError)
+	fset.StringVar(&path, "path", "", "Problem path (colon separated)")
+	fset.Parse(args)
+	setGrzPath(path)
+
+	dir := filepath.Clean(checkOneArg("add", fset.Args()))
 
 	id, Problem := readProblem(dir)
 
