@@ -9,12 +9,7 @@ import (
 	"garzon/grz-judge/client"
 )
 
-const u_submit = `grz submit [options] <ProblemID> <filename>
-
-Options:
-  --judge    URL for the judge
-
-`
+const u_submit = `grz submit <ProblemID> <filename>`
 
 func submit(args []string) {
 	var url string

@@ -16,7 +16,7 @@ func help(args []string) {
 func help1(cmd string) {
 	for _, C := range commands {
 		if C.name == cmd {
-			fmt.Print(C.usage)
+			fmt.Printf("usage: %s\n", C.usage)
 			return
 		}
 	}

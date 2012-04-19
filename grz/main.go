@@ -17,7 +17,12 @@ var commands []*Command
 
 func init() {
 	commands = []*Command{
+		&Command{"login",  `Login into the Judge`, u_login, login},
+		&Command{"list",   `List all problems`, u_list, list},
+		&Command{"search", `Search for problems`, u_search, search},
+		&Command{"show",   `Show the problem's statement`, u_show, show},
 		&Command{"submit", `Submit a problem to the judge`, u_submit, submit},
+		// grz config??
 		&Command{"help", ``, "", help},
 	}
 }
@@ -25,7 +30,6 @@ func init() {
 const _usage_header = "usage: grz <command> [<args>]\n\nCommands:\n"
 const _usage_footer = `
 Environment: 
-  GRZ_PATH    List of colon-separated roots for problems
   GRZ_JUDGE   URL of the Judge (including port)
 
 See 'grz help <command>' for more information.
@@ -56,7 +60,7 @@ func usageCmd(cmd string, exitcode int) {
 	if C == nil {
 		panic(fmt.Sprintf("command '%s' not found", cmd))
 	}
-	fmt.Fprint(os.Stderr, C.usage)
+	fmt.Fprintf(os.Stderr, "usage: %s\n", C.usage)
 	os.Exit(exitcode)
 }
 
