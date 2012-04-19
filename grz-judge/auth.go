@@ -71,7 +71,7 @@ func DeleteToken(login string) {
 func IsAuthorized(req *http.Request) (bool, string) {
 	if openMode || localMode {
 		return true, "[anonymous]"
-	}		
+	}
 	var cookie *http.Cookie
 	for _, c := range req.Cookies() {
 		if c.Name == "Auth" {

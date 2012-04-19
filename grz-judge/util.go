@@ -29,6 +29,9 @@ func parseUserHost(userhost string) (user, host string) {
 }
 
 func getProblem(probid string) (P *eval.Problem, err error) {
+	if probid == "" {
+		return nil, fmt.Errorf("Problem ID is empty")
+	}
 	if localMode {
 		problem, err := eval.ReadFromID(probid)
 		if err != nil {
@@ -38,5 +41,8 @@ func getProblem(probid string) (P *eval.Problem, err error) {
 	}
 	var problem eval.Problem
 	_, err = problems.Get(probid, &problem)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot get problem '%s': %s\n", probid, err)
+	}
 	return &problem, nil
 }

@@ -249,6 +249,9 @@ func (D *Database) Get(id string, v interface{}) (rev string, err error) {
 	case err != nil:
 		err = fmt.Errorf("Get: http.client error: %s\n", err)
 		return
+	case resp.StatusCode == 404:
+		err = fmt.Errorf("Get: ID '%s' not found", id)
+		return
 	case resp.StatusCode != 200:
 		err = fmt.Errorf("Get: HTTP status = '%s'\n", resp.Status)
 		return

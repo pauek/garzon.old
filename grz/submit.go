@@ -23,19 +23,24 @@ func submit(args []string) {
 
 	probid, filename := checkTwoArgs("submit", fset.Args())
 
+	var err error
+	client.AuthToken, err = readAuthToken()
+	if err != nil {
+		_errx("Cannot read Auth Token: %s", err)
+	}
 	resp, err := client.Submit(probid, filename)
 	if err != nil {
-		_errx("Submission error: %s\n", err)
+		_errx("Submission error: %s", err)
 	}
 	if strings.HasPrefix(resp, "ERROR") {
-		_errx("%s\n", resp)
+		_errx("%s", resp)
 	}
 	id := resp
 
 	for {
 		status, err := client.Status(id)
 		if err != nil {
-			_errx("Cannot get status: %s\n", err)
+			_errx("Cannot get status: %s", err)
 		}
 		if status == "Resolved" {
 			break
@@ -47,7 +52,7 @@ func submit(args []string) {
 
 	veredict, err := client.Veredict(id)
 	if err != nil {
-		_errx("Cannot get veredict: %s\n", err)
+		_errx("Cannot get veredict: %s", err)
 	}
 	fmt.Printf("\r                                         \r")
 	fmt.Print(veredict)

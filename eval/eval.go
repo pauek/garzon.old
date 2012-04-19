@@ -2,12 +2,13 @@ package eval
 
 import (
 	"encoding/gob"
+	"fmt"
 	"garzon/db"
 	"time"
 )
 
 type Submission struct {
-	User      string   `json:",omitempty"`
+	User      string `json:",omitempty"`
 	ProblemID string
 	Problem   *Problem `json:"-"`
 	Solution  string
@@ -40,7 +41,10 @@ type DirReader interface {
 type Eval bool
 
 func (E *Eval) Submit(S Submission, V *Veredict) error {
-	ev := S.Problem.Evaluator.Obj.(Evaluator)
+	ev, ok := S.Problem.Evaluator.Obj.(Evaluator)
+	if !ok {
+		return fmt.Errorf("Wrong Evaluator")
+	}
 	*V = ev.Evaluate(S.Problem, S.Solution)
 	return nil
 }

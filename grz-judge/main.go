@@ -41,8 +41,9 @@ func login(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	login := req.FormValue("login")
-	passwd := req.FormValue("password")
+	passwd := req.FormValue("passwd")
 	if !LoginCorrect(login, passwd) {
+		log.Printf("Unauthorized '%s'", login)
 		http.Error(w, "Unauthorized", 401)
 		return
 	}
@@ -53,6 +54,7 @@ func login(w http.ResponseWriter, req *http.Request) {
 	}
 	http.SetCookie(w, &http.Cookie{Name: "Auth", Value: tok, MaxAge: 600})
 	fmt.Fprintf(w, "Ok\n")
+	log.Printf("Authorized '%s'", login)
 }
 
 func logout(w http.ResponseWriter, req *http.Request) {
@@ -162,9 +164,9 @@ func main() {
 
 	Queue.Init()
 	launchEvaluators(accounts)
-	http.HandleFunc("/login/", login)
-	http.HandleFunc("/logout/", wAuth(logout))
-	http.HandleFunc("/submit/", wAuth(submit))
+	http.HandleFunc("/login", login)
+	http.HandleFunc("/logout", wAuth(logout))
+	http.HandleFunc("/submit", wAuth(submit))
 	http.HandleFunc("/status/", wAuth(status))
 	http.HandleFunc("/veredict/", wAuth(veredict))
 	err := http.ListenAndServe(fmt.Sprintf(":%d", ListenPort), nil)

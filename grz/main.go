@@ -14,6 +14,7 @@ type Command struct {
 }
 
 var commands []*Command
+var authToken string
 
 func init() {
 	commands = []*Command{
