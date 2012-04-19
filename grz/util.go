@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"garzon/grz-judge/client"
+	"io/ioutil"
 	"os"
 	"path/filepath"
-	"io/ioutil"
 )
 
 func _err(format string, args ...interface{}) {
@@ -12,7 +13,7 @@ func _err(format string, args ...interface{}) {
 }
 
 func _errx(format string, args ...interface{}) {
-	_err(format+"\n", args...)
+	_err(format, args...)
 	os.Exit(2)
 }
 
@@ -60,23 +61,31 @@ func configFile(name string, createParents bool) string {
 	return filepath.Join(garzonDir, "auth")
 }
 
-func saveAuthToken(tok string) error {
+func saveAuthToken() error {
+	tok := client.AuthToken
 	filename := configFile("auth", true)
 	err := ioutil.WriteFile(filename, []byte(tok), 0600)
 	if err != nil {
-		return fmt.Errorf("Cannot write '%s': %s", err)
+		_errx("Cannot write auth token to '%s': %s", err)
 	}
 	return nil
 }
 
-func readAuthToken() (string, error) {
-	// TODO: Detect that the file is missing to report "you should login first"
+func readAuthToken() {
 	filename := configFile("auth", false)
+	_, err := os.Stat(filename)
+	if err != nil {
+		if os.IsNotExist(err.(*os.PathError).Err) {
+			_errx("You should login first")
+		} else {
+			_errx("error: %s", err)
+		}
+	}
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return "", fmt.Errorf("Cannot read '%s': %s", filename, err)
+		_errx("Cannot read '%s': %s", filename, err)
 	}
-	return string(data), nil
+	client.AuthToken = string(data)
 }
 
 func removeAuthToken() error {

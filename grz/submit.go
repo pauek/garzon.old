@@ -22,12 +22,8 @@ func submit(args []string) {
 	}
 
 	probid, filename := checkTwoArgs("submit", fset.Args())
+	readAuthToken()
 
-	var err error
-	client.AuthToken, err = readAuthToken()
-	if err != nil {
-		_errx("Cannot read Auth Token: %s", err)
-	}
 	resp, err := client.Submit(probid, filename)
 	if err != nil {
 		_errx("Submission error: %s", err)
