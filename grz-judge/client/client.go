@@ -78,35 +78,3 @@ func Veredict(subid string) (veredict string, err error) {
 	}
 	return string(body), nil
 }
-
-func Test(problem, filename string) (id string, err error) {
-	var buff bytes.Buffer
-	w := multipart.NewWriter(&buff)
-
-	// problem
-	part1, err := w.CreateFormFile("problem", "json")
-	if err != nil {
-		return "", fmt.Errorf("Cannot create form file: %s\n", err)
-	}
-	part1.Write([]byte(problem))
-
-	// solution
-	part2, err := w.CreateFormFile("solution", filename)
-	if err != nil {
-		return "", fmt.Errorf("Cannot create form file: %s\n", err)
-	}
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return "", fmt.Errorf("Cannot read file '%s'\n", filename)
-	}
-	part2.Write(data)
-	w.Close()
-
-	mime := fmt.Sprintf("multipart/form-data; boundary=%s", w.Boundary())
-	resp, err := http.Post(JudgeUrl + "/test/", mime, &buff)
-	if err != nil {
-		return "", fmt.Errorf("Cannot POST: %s\n", err)
-	}
-	defer resp.Body.Close()
-	return firstLine(resp.Body)
-}
