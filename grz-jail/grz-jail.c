@@ -579,21 +579,17 @@ int ellapsed_time_ms() {
    return wall.tv_sec * 1000 + wall.tv_usec/1000;
 }
 
-void check_exe(char *argv0) {
-   // look for <directory>/exe
-   sprintf(exename, "%s/exe", argv0); 
+void check_exe(char *dir) {
+   sprintf(exename, "%s/exe", dir); // look for <directory>/exe
    struct stat _stat;
    die_if(stat(exename, &_stat) == -1, 
           "Cannot find executable '%s'\n", exename);
 }
 
-
 /** Guardian **/
 
 void guardian() {
    int stat;
-   
-   // signal(INT)
 
    get_start_time();
    
@@ -613,10 +609,28 @@ void guardian() {
    }
 }
 
+void grzjail(char *dir) {
+   check_exe(dir);
+
+   if (accused_mode) {
+      syscall_list_read();
+   } else {
+      perm_fd = open(perm_file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+      die_if(perm_fd < 0, "Couldn't open '%s'\n", perm_file);
+   }
+
+   accused_pid = fork();
+   die_if(accused_pid < 0, "Couldn't fork\n");
+   if (accused_pid == 0) { // Child
+      the_accused(dir);
+   } else {
+      guardian();
+   }
+}
 
 /** Main **/
 
-int main(int argc, char *argv[]) {
+int __main(int argc, char *argv[]) {
    int opt;
    while (-1 != (opt = getopt(argc, argv, "m:t:f:a"))) {
       switch (opt) {
@@ -634,22 +648,8 @@ int main(int argc, char *argv[]) {
       usage_message("Wrong number of arguments\n");
    }
 
-   check_exe(argv[0]);
+   grzjail(argv[0]);
 
-   if (accused_mode) {
-      syscall_list_read();
-   } else {
-      perm_fd = open(perm_file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-      die_if(perm_fd < 0, "Couldn't open '%s'\n", perm_file);
-   }
-
-   accused_pid = fork();
-   die_if(accused_pid < 0, "Couldn't fork\n");
-   if (accused_pid == 0) { // Child
-      the_accused(argv[0]);
-   } else {
-      guardian();
-   }
    die("Internal Error\n");
    return 3;
 }
