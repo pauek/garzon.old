@@ -53,4 +53,6 @@ func main() {
 		C.accused_mode = C.int(1)
 	}
 	C.grzjail(C.CString(args[0]))
+	fmt.Fprintf(os.Stderr, "You've just seen an error in The Matrix") // we shouldn't be here
+	os.Exit(3)
 }

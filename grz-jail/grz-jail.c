@@ -628,32 +628,6 @@ void grzjail(char *dir) {
    }
 }
 
-/** Main **/
-
-int __main(int argc, char *argv[]) {
-   int opt;
-   while (-1 != (opt = getopt(argc, argv, "m:t:f:a"))) {
-      switch (opt) {
-      case 't': max_cpu_seconds = atoi(optarg); break;
-      case 'm': max_memory = atoi(optarg) * 1024 * 1024; break;
-      case 'f': max_file_size = atoi(optarg) * 1024 * 1024; break;
-      case 'a': accused_mode = 1; break;
-      default: usage_message(0);
-      }
-   }
-   argv += optind;
-   argc -= optind;
-
-   if (argc != 1) {
-      usage_message("Wrong number of arguments\n");
-   }
-
-   grzjail(argv[0]);
-
-   die("Internal Error\n");
-   return 3;
-}
-
 /* Local variables: */
 /* compile-command: "gcc -Wall -static -o $HOME/bin/grz-jail grz-jail.c" */
 /* End: */
