@@ -1,13 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
-	"os/exec"
-	"time"
-	"bytes"
-	"strings"
 	"net/rpc"
+	"os/exec"
+	"strings"
+	"time"
 
 	"garzon/eval"
 )
@@ -19,8 +19,8 @@ type Evaluator struct {
 	host     string
 	location map[string]string
 	port     int
-	cmd     *exec.Cmd
-	client  *rpc.Client
+	cmd      *exec.Cmd
+	client   *rpc.Client
 	stderr   bytes.Buffer
 }
 
@@ -52,20 +52,20 @@ var commands = []string{"grz-jail", "grz-eval"}
 
 func (E *Evaluator) FindLocations() {
 	E.location = make(map[string]string)
-	for _, c := range commands { 
-		E.findLocation(c) 
+	for _, c := range commands {
+		E.findLocation(c)
 	}
 }
 
 func (E *Evaluator) CopyFiles() {
-	for _, c := range commands { 
-		E.CopyToRemote(E.location[c], ".") 
+	for _, c := range commands {
+		E.CopyToRemote(E.location[c], ".")
 	}
 }
 
 func (E *Evaluator) CopyToRemote(path, remPath string) {
 	log.Printf("Copying '%s' to '%s:%s' host\n", path, E.userhost(), remPath)
-	cmd := exec.Command("scp", path, E.userhost() + ":" + remPath)
+	cmd := exec.Command("scp", path, E.userhost()+":"+remPath)
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("Couldn't copy '%s': %s\n", path, err)
 	}
@@ -74,9 +74,11 @@ func (E *Evaluator) CopyToRemote(path, remPath string) {
 func (E *Evaluator) StartRemoteProcess() {
 	log.Printf("Executing 'grz-eval' at '%s'\n", E.userhost())
 	debugFlag := ""
-	if debugMode { debugFlag = "-k" }
+	if debugMode {
+		debugFlag = "-k"
+	}
 	cmdline := fmt.Sprintf("./grz-eval %s -p %d", debugFlag, remotePort)
-	redir   := fmt.Sprintf("localhost:%d:localhost:%d", E.port, remotePort)
+	redir := fmt.Sprintf("localhost:%d:localhost:%d", E.port, remotePort)
 	E.cmd = exec.Command("ssh", "-L", redir, E.userhost(), cmdline)
 	E.cmd.Stderr = &E.stderr
 	if err := E.cmd.Start(); err != nil {
@@ -93,7 +95,7 @@ func (E *Evaluator) StartLocalProcess() {
 	grzjail := E.location["grz-jail"]
 	port := fmt.Sprintf("%d", E.port)
 	args := []string{"-p", port, "-j", grzjail}
-	if debugMode { 
+	if debugMode {
 		args = append(args, "-k")
 	}
 	if localMode {
@@ -119,8 +121,10 @@ func (E *Evaluator) ConnectRPC() {
 
 func (E *Evaluator) HandleSubmissions() {
 	for {
-		id, ok := <- Queue.Channel
-		if ! ok { break }
+		id, ok := <-Queue.Channel
+		if !ok {
+			break
+		}
 		Queue.SetStatus(id, "In Process")
 		sub := Queue.Get(id)
 		var V eval.Veredict
@@ -144,16 +148,18 @@ func (E *Evaluator) CleanUp() {
 	if E.cmd != nil {
 		E.cmd.Process.Kill()
 	}
-	if ! E.Local() {
+	if !E.Local() {
 		E.KillRemoteProcess()
 	}
 }
 
 func (E *Evaluator) Run(done chan bool) {
 	E.FindLocations()
-	if ! E.Local() {
+	if !E.Local() {
 		E.KillRemoteProcess()
-		if copyFiles { E.CopyFiles() }
+		if copyFiles {
+			E.CopyFiles()
+		}
 		E.StartRemoteProcess()
 		time.Sleep(3 * time.Second) // FIXME
 	} else {
@@ -164,4 +170,33 @@ func (E *Evaluator) Run(done chan bool) {
 	E.HandleSubmissions()
 	E.CleanUp()
 	done <- true
+}
+
+// Evaluator pool
+
+var done chan bool
+var evaluators []*Evaluator
+
+func launchEvaluators(accounts []string) {
+	N := len(accounts)
+	if N < 1 {
+		log.Fatal("Accounts must be 'user@host' (and >= 1)")
+	}
+	evaluators = make([]*Evaluator, N)
+	done = make(chan bool)
+	for i, acc := range accounts {
+		user, host := parseUserHost(acc)
+		evaluators[i] = &Evaluator{
+			user: user,
+			host: host,
+			port: ListenPort + 1 + i,
+		}
+		go evaluators[i].Run(done)
+	}
+}
+
+func waitForEvaluators() {
+	for i := 0; i < len(evaluators); i++ {
+		<-done
+	}
 }

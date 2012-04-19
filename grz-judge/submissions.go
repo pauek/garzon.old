@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+var Queue Submissions
+
 type Submissions struct {
 	Channel    chan string
 	Mutex      sync.Mutex
@@ -26,13 +28,14 @@ func (S *Submissions) Pending() int {
 	return len(S.inprogress)
 }
 
-func (S *Submissions) Add(PID string, Problem *eval.Problem, Solution string) (ID string) {
+func (S *Submissions) Add(user string, pid string, problem *eval.Problem, sol string) (ID string) {
 	ID = db.NewUUID()
 	S.Mutex.Lock()
 	S.inprogress[ID] = &eval.Submission{
-		ProblemID: PID,
-		Problem:   Problem,
-		Solution:  Solution,
+		User:      user,
+		ProblemID: pid,
+		Problem:   problem,
+		Solution:  sol,
 		Submitted: time.Now(),
 		Status:    "In Queue",
 	}

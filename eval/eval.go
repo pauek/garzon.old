@@ -1,15 +1,15 @@
-
 package eval
 
 import (
-	"time"
 	"encoding/gob"
 	"garzon/db"
+	"time"
 )
 
 type Submission struct {
+	User      string   `json:",omitempty"`
 	ProblemID string
-	Problem  *Problem `json:"-"`
+	Problem   *Problem `json:"-"`
 	Solution  string
 	Status    string
 	Submitted time.Time
@@ -18,8 +18,10 @@ type Submission struct {
 }
 
 type Problem struct {
-	Title, StatementID, Solution string
-	Evaluator db.Obj
+	Title       string
+	StatementID string
+	Solution    string
+	Evaluator   db.Obj
 }
 
 type Veredict struct {
@@ -45,9 +47,9 @@ func (E *Eval) Submit(S Submission, V *Veredict) error {
 
 // RPC
 func init() {
-	db.Register("eval.Problem",    Problem{})
+	db.Register("eval.Problem", Problem{})
 	db.Register("eval.Submission", Submission{})
-	db.Register("eval.Veredict",   Veredict{})
+	db.Register("eval.Veredict", Veredict{})
 	gob.Register(Problem{})
 	gob.Register(Submission{})
 	gob.Register(Veredict{})
