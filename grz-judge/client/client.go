@@ -72,6 +72,26 @@ func Login(login, passwd string) (err error) {
 	return nil
 }
 
+func Logout(login string) (err error) {
+	if login == "" {
+		return fmt.Errorf("User empty")
+	}
+	Url := fmt.Sprintf("%s/logout", JudgeUrl)
+	req, err := http.NewRequest("POST", Url, nil)
+	req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("Cannot POST to '%s': %s", Url, err)
+	}
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("Error: %s", resp.Status)
+	}
+	resp.Body.Close()
+	return nil
+}
+
+
 func Submit(probid, filename string) (id string, err error) {
 	var buff bytes.Buffer
 	w := multipart.NewWriter(&buff)

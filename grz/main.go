@@ -19,6 +19,7 @@ var authToken string
 func init() {
 	commands = []*Command{
 		&Command{"login",  `Login into the Judge`, u_login, login},
+		&Command{"logout", `Logout from the Judge`, u_logout, logout},
 		&Command{"list",   `List all problems`, u_list, list},
 		&Command{"search", `Search for problems`, u_search, search},
 		&Command{"show",   `Show the problem's statement`, u_show, show},

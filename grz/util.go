@@ -78,3 +78,12 @@ func readAuthToken() (string, error) {
 	}
 	return string(data), nil
 }
+
+func removeAuthToken() error {
+	filename := configFile("auth", false)
+	err := os.Remove(filename)
+	if err != nil {
+		return fmt.Errorf("Cannot remove '%s': %s", filename, err)
+	}
+	return nil
+}

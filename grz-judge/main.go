@@ -62,13 +62,10 @@ func logout(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "Ok\n")
 		return
 	}
-	ok, login := IsAuthorized(req)
-	if ok {
-		DeleteToken(login)
-		fmt.Fprintf(w, "Ok\n")
-	} else {
-		http.Error(w, "Unauthorized", 401)
-	}
+	login := req.Header.Get("user")
+	log.Printf("Logged out '%s'", login)
+	DeleteToken(login)
+	fmt.Fprintf(w, "Ok\n")
 }
 
 func wAuth(fn http.HandlerFunc) http.HandlerFunc {
@@ -78,7 +75,7 @@ func wAuth(fn http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, "Unauthorized", 401)
 			return
 		}
-		req.Header.Add("user", user)
+		req.Header.Add("user", user) // ugly
 		fn(w, req)
 	}
 }
