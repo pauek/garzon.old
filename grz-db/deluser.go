@@ -26,7 +26,7 @@ func deluser(args []string) {
 
 	// Confirm
 	var login2 string
-	fmt.Printf("Confirm login: ")
+	fmt.Printf("Confirm username: ")
 	fmt.Scanf("%s", &login2)
 	if login != login2 {
 		_errx("'%s' and '%s' do not match", login, login2)
