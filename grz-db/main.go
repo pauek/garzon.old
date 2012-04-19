@@ -18,17 +18,23 @@ var commands []*Command
 func init() {
 	commands = []*Command{
 		&Command{"add", `Add a problem to the Database`, u_add, add},
+		&Command{"copy", `Copy a problem from the Database`, u_copy, coppy},
 		&Command{"update", `Update a problem in the Database`, u_update, update},
 		&Command{"delete", `Delete a problem in the Database`, u_delete, delette},
+		&Command{"adduser", `Add a user to the Database`, u_adduser, adduser},
+		&Command{"deluser", `Delete a user from the Database`, u_deluser, deluser},
 		&Command{"help", ``, "", help},
 	}
 }
 
-const _usage_header = "usage: grz-db <command> [<args>]\n\nCommands:\n"
+const _usage_header = `usage: grz-db <command> [<args>]
+
+Commands:
+`
 const _usage_footer = `
 Environment: 
   GRZ_PATH    List of colon-separated roots for problems
-  GRZ_JUDGE   URL of the Judge (including port)
+  GRZ_DB      URL of the Judge Database (including port)
 
 See 'grz help <command>' for more information.
 `

@@ -6,8 +6,7 @@ import (
 	"garzon/eval"
 )
 
-const u_delete = `grz delete <ProblemID>
-`
+const u_delete = `grz delete <ProblemID>`
 
 func delette(args []string) {
 	id := checkOneArg("delete", args)

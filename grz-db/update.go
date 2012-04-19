@@ -11,7 +11,6 @@ const u_update = `grz update [options] <directory>
 
 Options:
   --path    Problem root directory
-
 `
 
 func update(args []string) {

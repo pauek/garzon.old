@@ -11,7 +11,6 @@ const u_add = `grz add [options] <directory>
 
 Options:
   --path    Problem root directory
-
 `
 
 func add(args []string) {
