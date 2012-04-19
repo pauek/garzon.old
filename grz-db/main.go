@@ -17,12 +17,14 @@ var commands []*Command
 
 func init() {
 	commands = []*Command{
-		&Command{"submit", `Submit a problem to the judge`, u_submit, submit},
+		&Command{"add", `Add a problem to the Database`, u_add, add},
+		&Command{"update", `Update a problem in the Database`, u_update, update},
+		&Command{"delete", `Delete a problem in the Database`, u_delete, delette},
 		&Command{"help", ``, "", help},
 	}
 }
 
-const _usage_header = "usage: grz <command> [<args>]\n\nCommands:\n"
+const _usage_header = "usage: grz-db <command> [<args>]\n\nCommands:\n"
 const _usage_footer = `
 Environment: 
   GRZ_PATH    List of colon-separated roots for problems
