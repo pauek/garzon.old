@@ -137,9 +137,10 @@ func veredict(w http.ResponseWriter, req *http.Request) {
 	case sub != nil && sub.Status != "Resolved":
 		fmt.Fprintf(w, "Not resolved\n")
 	case sub != nil:
-		fmt.Fprintf(w, "%s\n", sub.Veredict.Message)
-		if sub.Veredict.Message != "Accepted" {
-			fmt.Fprintf(w, "\n%s\n", sub.Veredict.Details.Obj)
+		V := sub.Veredict
+		fmt.Fprintf(w, "%s\n", V.Message)
+		if V.Message != "Accepted" && V.Details.Obj != nil {
+			fmt.Fprintf(w, "\n%v", V.Details.Obj)
 		}
 		Queue.Delete(id)
 	default:
