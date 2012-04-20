@@ -71,7 +71,18 @@ func saveAuthToken() error {
 	return nil
 }
 
-func readAuthToken() {
+func isOpen() bool {
+	open, err := client.Open()
+	if err != nil {
+		_errx("Cannot determine if Judge is open")
+	}
+	return open
+}
+
+func maybeReadAuthToken() {
+	if isOpen() {
+		return
+	}
 	filename := configFile("auth", false)
 	_, err := os.Stat(filename)
 	if err != nil {

@@ -10,6 +10,11 @@ const u_login = `grz login <user>`
 func login(args []string) {
 	login := checkOneArg("login", args)
 
+	if isOpen() {
+		fmt.Println("No need to login.")
+		return
+	}
+
 	// Get password (two times)
 	DisableEcho()
 	// FIXME: Catch Ctrl-C

@@ -9,7 +9,8 @@ const u_logout = `grz logout <user>`
 
 func logout(args []string) {
 	logout := checkOneArg("logout", args)
-	readAuthToken()
+	
+	maybeReadAuthToken()
 
 	if err := client.Logout(logout); err != nil {
 		_errx("Cannot logout: %s", err)
