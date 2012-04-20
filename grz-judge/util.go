@@ -5,6 +5,7 @@ import (
 	"github.com/pauek/garzon/db"
 	"github.com/pauek/garzon/eval"
 	_ "github.com/pauek/garzon/eval/programming"
+	"io"
 	"log"
 	"strings"
 )
@@ -45,4 +46,8 @@ func getProblem(probid string) (P *eval.Problem, err error) {
 		return nil, fmt.Errorf("Cannot get problem '%s': %s\n", probid, err)
 	}
 	return &problem, nil
+}
+
+func listProblems(w io.Writer) {
+	fmt.Fprintf(w, "Files: unimplemented")
 }

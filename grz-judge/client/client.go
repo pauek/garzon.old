@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 var JudgeUrl string
@@ -64,6 +65,24 @@ func Open() (isOpen bool, err error) {
 	return line == "yes", nil
 }
 
+func ProblemList() (ids []string, err error) {
+	Url := fmt.Sprintf("%s/list", JudgeUrl)
+	resp, err := client.Get(Url)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot GET '%s': %s", Url, err)
+	}
+	defer resp.Body.Close()
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot read response body: %s", err)
+	}
+	ids = strings.Split(string(data), "\n")
+	if len(ids) > 0 && ids[len(ids)-1] == "" {
+		ids = ids[:len(ids)-1]
+	}
+	return ids, nil
+}
+
 func Login(login, passwd string) (err error) {
 	Url := fmt.Sprintf("%s/login", JudgeUrl)
 	if login == "" {
@@ -106,7 +125,6 @@ func Logout(login string) (err error) {
 	resp.Body.Close()
 	return nil
 }
-
 
 func Submit(probid, filename string) (id string, err error) {
 	var buff bytes.Buffer

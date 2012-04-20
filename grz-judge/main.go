@@ -88,6 +88,20 @@ func wAuth(fn http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+func list(w http.ResponseWriter, req *http.Request) {
+	if Mode["files"] {
+		listProblems(w)
+		return
+	} 
+	ids, err := Problems.AllIDs()
+	if err != nil {
+		fmt.Fprintf(w, "ERROR: Cannot get AllIDs")
+	}
+	for _, id := range ids {
+		fmt.Fprintf(w, "%s\n", id)
+	}
+}
+
 func submit(w http.ResponseWriter, req *http.Request) {
 	log.Printf("New submission: %s\n", req.FormValue("id"))
 	if req.Method != "POST" {
@@ -190,6 +204,7 @@ func main() {
 	http.HandleFunc("/login", login)
 	http.HandleFunc("/logout", wAuth(logout))
 	http.HandleFunc("/submit", wAuth(submit))
+	http.HandleFunc("/list", wAuth(list))
 	http.HandleFunc("/status/", wAuth(status))
 	http.HandleFunc("/veredict/", wAuth(veredict))
 
