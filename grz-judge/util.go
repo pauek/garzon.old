@@ -7,6 +7,8 @@ import (
 	_ "github.com/pauek/garzon/eval/programming"
 	"io"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -49,5 +51,15 @@ func getProblem(probid string) (P *eval.Problem, err error) {
 }
 
 func listProblems(w io.Writer) {
-	fmt.Fprintf(w, "Files: unimplemented")
+	grzpath := eval.RootList()
+	for _, root := range grzpath {
+		filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if ok, _, _ := eval.IsProblem(path); ok {
+				if _, rel, err := eval.SplitRootRelative(path, path); err == nil {
+					fmt.Fprintf(w, "%s\n", eval.IdFromDir(rel))
+				}
+			}
+			return nil
+		})
+	}
 }

@@ -15,23 +15,35 @@ func init() {
 	GrzPath = os.Getenv("GRZ_PATH")
 }
 
-func grzPath() []string {
+func RootList() []string {
 	return filepath.SplitList(GrzPath)
 }
 
-func readFrom(abspath string) (P *Problem, err error) {
+func IsProblem(abspath string) (bool, Evaluator, error) {
 	abspath = filepath.Clean(abspath)
 	base := filepath.Base(abspath)
 	idx := strings.Index(base, ".")
 	if idx == -1 {
-		return nil, fmt.Errorf("'%s' doesn't match <Name>.<Type>", base)
+		return false, nil, fmt.Errorf("'%s' doesn't match <Name>.<Type>", base)
 	}
 	typ := base[idx+1:]
 
 	// Lookup <type>.Evaluator
 	ev := db.ObjFromType(typ + ".Evaluator")
 	if ev == nil {
-		return nil, fmt.Errorf(`Type '%s.Evaluator' not found`, typ)
+		return false, nil, fmt.Errorf(`Type '%s.Evaluator' not found`, typ)
+	}
+	E, ok := ev.(Evaluator)
+	if !ok {
+		return false, nil, fmt.Errorf("Retrieved object is not an Evaluator")
+	}
+	return true, E, nil
+}
+
+func readFrom(abspath string) (P *Problem, err error) {
+	isprob, evaluator, err := IsProblem(abspath)
+	if !isprob {
+		return nil, err
 	}
 
 	// Read Title
@@ -48,19 +60,15 @@ func readFrom(abspath string) (P *Problem, err error) {
 	}
 
 	// Read directory
-	R, ok := ev.(DirReader)
+	R, ok := evaluator.(DirReader)
 	if !ok {
-		fmt.Printf("%v\n", ev)
+		fmt.Printf("%v\n", evaluator)
 		return nil, fmt.Errorf("Retrieved object is not a DirReader")
 	}
 	if err := R.ReadDir(abspath, P); err != nil {
 		return nil, fmt.Errorf("Couldn't read problem at '%s': %s\n", abspath, err)
 	}
-	E, ok := ev.(Evaluator)
-	if !ok {
-		return nil, fmt.Errorf("Retrieved object is not an Evaluator")
-	}
-	P.Evaluator = db.Obj{E}
+	P.Evaluator = db.Obj{evaluator}
 	return P, nil
 }
 
@@ -68,7 +76,7 @@ func ReadFromID(id string) (Problem *Problem, err error) {
 	reldir := strings.Replace(id, ".", "/", -1)
 
 	var dirs []string
-	for _, root := range grzPath() {
+	for _, root := range RootList() {
 		glob := filepath.Join(root, reldir) + ".*"
 		dirs, err = filepath.Glob(glob)
 		if err != nil {
@@ -91,30 +99,46 @@ func ReadFromID(id string) (Problem *Problem, err error) {
 	return
 }
 
+func IsDir(abspath string) (bool, error) {
+	info, err := os.Stat(abspath)
+	if err != nil {
+		return false, fmt.Errorf("Cannot stat '%s'", abspath)
+	}
+	if !info.IsDir() {
+		return false, fmt.Errorf("'%s' is not a directory", abspath)
+	}
+	return true, nil
+}
+
+func SplitRootRelative(dir, abspath string) (root, relative string, err error) {
+	isdir, err := IsDir(abspath)
+	if !isdir {
+		return "", "", err
+	}
+
+	// Find root + relative
+	root, relative, err = findRoot(dir)
+	if err != nil {
+		return "", "", err
+	}
+	return
+}
+
+func IdFromDir(reldir string) string {
+	preid := strings.Split(reldir, ".")[0]
+	return strings.Replace(preid, "/", ".", -1)
+}
+
 func ReadFromDir(dir string) (id string, problem *Problem, err error) {
 	abspath, err := filepath.Abs(dir)
 	if err != nil {
 		return "", nil, fmt.Errorf("Cannot get abs of '%s': %s\n", dir)
 	}
-
-	// Check that it is a directory
-	info, err := os.Stat(abspath)
-	if err != nil {
-		return "", nil, fmt.Errorf("Cannot stat '%s'", abspath)
-	}
-	if !info.IsDir() {
-		return "", nil, fmt.Errorf("'%s' is not a directory", abspath)
-	}
-
-	// Find root + relative
-	_, relative, err := findRoot(dir)
+	_, relative, err := SplitRootRelative(dir, abspath)
 	if err != nil {
 		return "", nil, err
 	}
-
-	// Get the ID of the problem
-	preid := strings.Split(relative, ".")[0]
-	id = strings.Replace(preid, "/", ".", -1)
+	id = IdFromDir(relative)
 	problem, err = readFrom(abspath)
 	return id, problem, err
 }
@@ -124,7 +148,7 @@ func findRoot(dir string) (root, relative string, err error) {
 	if err != nil {
 		return "", "", fmt.Errorf("Cannot get abs of '%s': %s\n", dir)
 	}
-	grzpath := grzPath()
+	grzpath := RootList()
 	if len(grzpath) == 0 {
 		return "", "", fmt.Errorf("No roots (GRZ_PATH empty)")
 	}
