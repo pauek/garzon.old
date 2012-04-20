@@ -1,40 +1,27 @@
 package main
 
 import (
-	"flag"
+	"fmt"
 	"github.com/pauek/garzon/db"
 	"github.com/pauek/garzon/eval"
-	"path/filepath"
 )
 
-const u_update = `grz-db update [options] <directory>`
+const u_update = `grz-db update [-R] <directory>
+
+Options:
+   -R,   Update recursively (all problems found under <directory>)
+`
 
 func update(args []string) {
-	var path string
-	fset := flag.NewFlagSet("update", flag.ExitOnError)
-	fset.StringVar(&path, "path", "", "Problem path (colon separated)")
-	fset.Parse(args)
-
-	dir := filepath.Clean(checkOneArg("update", fset.Args()))
-
-	if path != "" {
-		eval.GrzPath = path
+	storeFunc = func(db *db.Database, id string, Problem *eval.Problem) error {
+		rev, _ := db.Rev(id)
+		if rev == "" {
+			return fmt.Errorf("Problem '%s' not in the database", id)
+		}
+		if err := db.Update(id, rev, Problem); err != nil {
+			return err
+		}
+		return nil
 	}
-	id, Problem, err := eval.ReadFromDir(dir)
-	if err != nil {
-		_errx("Cannot read problem at '%s': %s\n", dir, err)
-	}
-
-	// Store in the database
-	problems, err := db.GetOrCreateDB("problems")
-	if err != nil {
-		_errx("Cannot get database 'problems': %s\n", err)
-	}
-	rev, _ := problems.Rev(id)
-	if rev == "" {
-		_errx("Problem '%s' not found in the database", id)
-	}
-	if err := problems.Update(id, rev, Problem); err != nil {
-		_errx("Couldn't update: %s\n", err)
-	}
+	addupdate("add", args)
 }
