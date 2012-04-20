@@ -6,7 +6,7 @@ import (
 )
 
 func _err(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "grz: "+format+"\n", args...)
+	fmt.Fprintf(os.Stderr, "grz-db: "+format+"\n", args...)
 }
 
 func _errx(format string, args ...interface{}) {

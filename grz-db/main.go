@@ -17,12 +17,13 @@ var commands []*Command
 
 func init() {
 	commands = []*Command{
-		&Command{"add", `Add a problem to the Database`, u_add, add},
-		&Command{"copy", `Copy a problem from the Database`, u_copy, coppy},
-		&Command{"update", `Update a problem in the Database`, u_update, update},
-		&Command{"delete", `Delete a problem in the Database`, u_delete, delette},
-		&Command{"adduser", `Add a user to the Database`, u_adduser, adduser},
-		&Command{"deluser", `Delete a user from the Database`, u_deluser, deluser},
+		&Command{"add", `Add a problem`, u_add, add},
+		&Command{"copy", `Copy a problem`, u_copy, coppy},
+		&Command{"update", `Update a problem`, u_update, update},
+		&Command{"delete", `Delete a problem`, u_delete, delette},
+		&Command{"list", `List the problems' IDs`, u_list, list},
+		&Command{"adduser", `Add a user`, u_adduser, adduser},
+		&Command{"deluser", `Delete a user`, u_deluser, deluser},
 		&Command{"help", ``, "", help},
 	}
 }
@@ -64,7 +65,7 @@ func usageCmd(cmd string, exitcode int) {
 	if C == nil {
 		panic(fmt.Sprintf("command '%s' not found", cmd))
 	}
-	fmt.Fprint(os.Stderr, C.usage + "\n")
+	fmt.Fprint(os.Stderr, "usage: " + C.usage + "\n")
 	os.Exit(exitcode)
 }
 

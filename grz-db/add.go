@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-const u_add = `grz-db add [options] <directory>`
+const u_add = `grz-db add <directory>`
 
 func add(args []string) {
 	var path string
