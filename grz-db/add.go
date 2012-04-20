@@ -2,27 +2,63 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/pauek/garzon/db"
 	"github.com/pauek/garzon/eval"
+	"os"
 	"path/filepath"
 )
 
-const u_add = `grz-db add <directory>`
+const u_add = `grz-db add [-R] <directory>
+
+Options:
+   -R,   Add recursively (all problems found under <directory>)
+`
 
 func add(args []string) {
-	var path string
+	var recursive bool
 	fset := flag.NewFlagSet("add", flag.ExitOnError)
-	fset.StringVar(&path, "path", "", "Problem path (colon separated)")
+	fset.BoolVar(&recursive, "R", false, "")
 	fset.Parse(args)
 
 	dir := filepath.Clean(checkOneArg("add", fset.Args()))
 
-	if path != "" {
-		eval.GrzPath = path
+	if recursive {
+		_addrecursive(dir)
+	} else {
+		err := _add(dir)
+		if err != nil {
+			_errx(fmt.Sprintf("%s\n", err))
+		}
 	}
+}
+
+func _addrecursive(dir string) {
+	if eval.GrzPath == "" {
+		fmt.Printf("No roots.\n")
+		return
+	}
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if ok, _, _ := eval.IsProblem(path); ok {
+			if _, rel, err := eval.SplitRootRelative(path, path); err == nil {
+				e := _add(path)
+				if e != nil {
+					fmt.Printf("Error: %s\n", e)
+				} else {
+					fmt.Printf("%s\n", eval.IdFromDir(rel))
+				}
+			} else {
+				fmt.Printf("Error: %s\n", err)
+			}
+		}
+		return nil
+	})
+}
+
+func _add(dir string) error {
 	id, Problem, err := eval.ReadFromDir(dir)
 	if err != nil {
-		_errx("Cannot read problem at '%s': %s\n", dir, err)
+		return fmt.Errorf("Cannot read problem at '%s': %s\n", dir, err)
 	}
 
 	// Store in the database
@@ -32,9 +68,10 @@ func add(args []string) {
 	}
 	rev, _ := problems.Rev(id)
 	if rev != "" {
-		_errx("Problem '%s' already in the database", id)
+		return fmt.Errorf("Problem '%s' already in the database", id)
 	}
 	if err := problems.Put(id, Problem); err != nil {
-		_errx("Couldn't add: %s\n", err)
+		return fmt.Errorf("Couldn't add: %s\n", err)
 	}
+	return nil
 }
