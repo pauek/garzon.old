@@ -74,7 +74,7 @@ func (E *Evaluator) CopyToRemote(path, remPath string) {
 func (E *Evaluator) StartRemoteProcess() {
 	log.Printf("Executing 'grz-eval' at '%s'\n", E.userhost())
 	debugFlag := ""
-	if debugMode {
+	if Mode["debug"] {
 		debugFlag = "-k"
 	}
 	cmdline := fmt.Sprintf("./grz-eval %s -p %d", debugFlag, remotePort)
@@ -95,11 +95,11 @@ func (E *Evaluator) StartLocalProcess() {
 	grzjail := E.location["grz-jail"]
 	port := fmt.Sprintf("%d", E.port)
 	args := []string{"-p", port, "-j", grzjail}
-	if debugMode {
+	if Mode["debug"] {
 		args = append(args, "-k")
 	}
-	if localMode {
-		args = append(args, "-t")
+	if Mode["local"] {
+		args = append(args, "-t") // use '/tmp'
 	}
 	E.cmd = exec.Command("grz-eval", args...)
 	E.cmd.Stderr = &E.stderr
@@ -157,7 +157,7 @@ func (E *Evaluator) Run(done chan bool) {
 	E.FindLocations()
 	if !E.Local() {
 		E.KillRemoteProcess()
-		if copyFiles {
+		if Mode["copy"] {
 			E.CopyFiles()
 		}
 		E.StartRemoteProcess()

@@ -16,13 +16,12 @@ const (
 )
 
 var (
-	copyFiles bool
-	debugMode bool
-	localMode bool
-	openMode  bool
+	Server string
+	Mode  = make(map[string]bool)
+	Modes = []string{"copy", "debug", "local", "open", "files"}
 
-	problems *db.Database
-	users    *db.Database
+	Problems *db.Database
+	Users    *db.Database
 )
 
 const usage = `usage: grz-judge [options...] [accounts...]
@@ -30,13 +29,22 @@ const usage = `usage: grz-judge [options...] [accounts...]
 Options:
 	--copy,    Copy 'grz-{eval,jail}' to remote accounts
    --debug,   Tell 'grz-eval' to keep evaluation directories
-   --local,   Local mode (read problems from files, don't touch DB)
-   --open,    Open mode (anyone can submit, submissions not stored)
+   --local,   Local mode (only listen to localhost:50000)
+   --open,    Open mode (no authentication, submissions not stored)
+   --files,   Doesn't touch DB, reads problems from disk (implies --open)
 					
 `
 
+func open(w http.ResponseWriter, req *http.Request) {
+	if Mode["open"] {
+		fmt.Fprintf(w, "yes")
+	} else {
+		fmt.Fprintf(w, "no")
+	}
+}
+
 func login(w http.ResponseWriter, req *http.Request) {
-	if localMode || openMode {
+	if Mode["open"] {
 		fmt.Fprintf(w, "Ok\n")
 		return
 	}
@@ -58,7 +66,7 @@ func login(w http.ResponseWriter, req *http.Request) {
 }
 
 func logout(w http.ResponseWriter, req *http.Request) {
-	if localMode || openMode {
+	if Mode["open"] {
 		fmt.Fprintf(w, "Ok\n")
 		return
 	}
@@ -69,8 +77,8 @@ func logout(w http.ResponseWriter, req *http.Request) {
 }
 
 func wAuth(fn http.HandlerFunc) http.HandlerFunc {
-	return func (w http.ResponseWriter, req *http.Request) {
-		ok, user := IsAuthorized(req); 
+	return func(w http.ResponseWriter, req *http.Request) {
+		ok, user := IsAuthorized(req)
 		if !ok {
 			http.Error(w, "Unauthorized", 401)
 			return
@@ -143,10 +151,10 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, usage)
 	}
-	flag.BoolVar(&copyFiles, "copy", false, "")
-	flag.BoolVar(&debugMode, "debug", false, "")
-	flag.BoolVar(&localMode, "local", false, "")
-	flag.BoolVar(&openMode, "open", false, "")
+	flags := make(map[string]*bool)
+	for _, f := range Modes {
+		flags[f] = flag.Bool(f, false, "")
+	}
 	flag.Parse()
 
 	accounts := flag.Args()
@@ -154,22 +162,42 @@ func main() {
 		accounts = []string{"local"}
 	}
 
-	if !localMode {
-		problems = getDB("problems")
-		users = getDB("users")
+	for name, active := range flags {
+		if *active {
+			Mode[name] = true
+			log.Printf("Mode '--%s'", name)
+		}
+	}
+
+	if Mode["files"] { 
+		Mode["open"] = true // --files => --open
+		log.Printf("Mode '--open'")
+	}
+	if !Mode["files"] {
+		Problems = getDB("problems")
+		if !Mode["open"] {
+			Users = getDB("users")
+		}
+	}
+	if Mode["local"] {
+		Server = "localhost"
 	}
 
 	Queue.Init()
 	launchEvaluators(accounts)
+	http.HandleFunc("/open", open)
 	http.HandleFunc("/login", login)
 	http.HandleFunc("/logout", wAuth(logout))
 	http.HandleFunc("/submit", wAuth(submit))
 	http.HandleFunc("/status/", wAuth(status))
 	http.HandleFunc("/veredict/", wAuth(veredict))
-	err := http.ListenAndServe(fmt.Sprintf(":%d", ListenPort), nil)
+
+	Url := fmt.Sprintf("%s:%d", Server, ListenPort)
+	err := http.ListenAndServe(Url, nil)
 	if err != nil {
 		log.Printf("ListenAndServe: %s\n", err)
 	}
+
 	Queue.Close()
 	waitForEvaluators()
 }

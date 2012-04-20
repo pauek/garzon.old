@@ -31,7 +31,7 @@ func base64Encode(src []byte) []byte {
 func LoginCorrect(login, passwd string) bool {
 	// find user in DB
 	var user db.User
-	_, err := users.Get(login, &user)
+	_, err := Users.Get(login, &user)
 	if err != nil {
 		return false
 	}
@@ -69,7 +69,7 @@ func DeleteToken(login string) {
 }
 
 func IsAuthorized(req *http.Request) (bool, string) {
-	if openMode || localMode {
+	if Mode["open"] {
 		return true, "[anonymous]"
 	}
 	var cookie *http.Cookie

@@ -50,6 +50,20 @@ func firstLine(R io.Reader) (id string, err error) {
 	return string(line), nil
 }
 
+func Open() (isOpen bool, err error) {
+	Url := fmt.Sprintf("%s/open", JudgeUrl)
+	resp, err := client.Get(Url)
+	if err != nil {
+		return false, fmt.Errorf("Cannot GET '%s': %s", Url, err)
+	}
+	defer resp.Body.Close()
+	line, err := firstLine(resp.Body)
+	if err != nil {
+		return false, fmt.Errorf("Cannot read response body: %s", err)
+	}
+	return line == "yes", nil
+}
+
 func Login(login, passwd string) (err error) {
 	Url := fmt.Sprintf("%s/login", JudgeUrl)
 	if login == "" {
@@ -78,7 +92,9 @@ func Logout(login string) (err error) {
 	}
 	Url := fmt.Sprintf("%s/logout", JudgeUrl)
 	req, err := http.NewRequest("POST", Url, nil)
-	req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
+	if AuthToken != "" {
+		req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -117,7 +133,9 @@ func Submit(probid, filename string) (id string, err error) {
 		return "", fmt.Errorf("Cannot create request: %s", err)
 	}
 	req.Header.Set("Content-Type", mime)
-	req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
+	if AuthToken != "" {
+		req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -133,7 +151,9 @@ func Submit(probid, filename string) (id string, err error) {
 func Status(subid string) (status string, err error) {
 	Url := fmt.Sprintf("%s/status/%s", JudgeUrl, subid)
 	req, err := http.NewRequest("GET", Url, nil)
-	req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
+	if AuthToken != "" {
+		req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -152,7 +172,9 @@ func Status(subid string) (status string, err error) {
 func Veredict(subid string) (veredict string, err error) {
 	Url := fmt.Sprintf("%s/veredict/%s", JudgeUrl, subid)
 	req, err := http.NewRequest("GET", Url, nil)
-	req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
+	if AuthToken != "" {
+		req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {

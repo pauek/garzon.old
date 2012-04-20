@@ -32,7 +32,7 @@ func getProblem(probid string) (P *eval.Problem, err error) {
 	if probid == "" {
 		return nil, fmt.Errorf("Problem ID is empty")
 	}
-	if localMode {
+	if Mode["files"] {
 		problem, err := eval.ReadFromID(probid)
 		if err != nil {
 			return nil, fmt.Errorf("Couldn't read problem '%s': %s\n", probid, err)
@@ -40,7 +40,7 @@ func getProblem(probid string) (P *eval.Problem, err error) {
 		return problem, nil
 	}
 	var problem eval.Problem
-	_, err = problems.Get(probid, &problem)
+	_, err = Problems.Get(probid, &problem)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot get problem '%s': %s\n", probid, err)
 	}
