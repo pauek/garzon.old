@@ -5,7 +5,7 @@ import (
 	"github.com/pauek/garzon/db"
 )
 
-const u_deluser = `grz deluser <login>`
+const u_deluser = `grz-db deluser <login>`
 
 func deluser(args []string) {
 	login := checkOneArg("deluser", args)

@@ -4,12 +4,7 @@ import (
 	_ "github.com/pauek/garzon/db"
 )
 
-const u_copy = `grz copy [options] <directory>
-
-Options:
-  --path    Problem root directory
-
-`
+const u_copy = `grz-db copy [options] <directory>`
 
 func coppy(args []string) {
 	_errx("Unimplemented")

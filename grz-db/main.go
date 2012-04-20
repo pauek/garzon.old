@@ -36,7 +36,7 @@ Environment:
   GRZ_PATH    List of colon-separated roots for problems
   GRZ_DB      URL of the Judge Database (including port)
 
-See 'grz help <command>' for more information.
+See 'grz-db help <command>' for more information.
 `
 
 func findCmd(cmd string) *Command {
@@ -64,7 +64,7 @@ func usageCmd(cmd string, exitcode int) {
 	if C == nil {
 		panic(fmt.Sprintf("command '%s' not found", cmd))
 	}
-	fmt.Fprint(os.Stderr, C.usage)
+	fmt.Fprint(os.Stderr, C.usage + "\n")
 	os.Exit(exitcode)
 }
 
@@ -79,7 +79,7 @@ func main() {
 		if cmd == "--help" {
 			usage(0)
 		} else {
-			_errx("grz: '%s' is not a grz command. See 'grz help'", cmd)
+			_errx("grz-db: '%s' is not a grz-db command. See 'grz-db help'", cmd)
 		}
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/pauek/garzon/db"
 )
 
-const u_adduser = `grz adduser <login>`
+const u_adduser = `grz-db adduser <login>`
 
 func adduser(args []string) {
 	login := checkOneArg("adduser", args)

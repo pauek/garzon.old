@@ -7,11 +7,7 @@ import (
 	"path/filepath"
 )
 
-const u_add = `grz add [options] <directory>
-
-Options:
-  --path    Problem root directory
-`
+const u_add = `grz-db add [options] <directory>`
 
 func add(args []string) {
 	var path string

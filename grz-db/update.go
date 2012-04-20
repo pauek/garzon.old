@@ -7,11 +7,7 @@ import (
 	"path/filepath"
 )
 
-const u_update = `grz update [options] <directory>
-
-Options:
-  --path    Problem root directory
-`
+const u_update = `grz-db update [options] <directory>`
 
 func update(args []string) {
 	var path string
