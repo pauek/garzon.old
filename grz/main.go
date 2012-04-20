@@ -18,11 +18,12 @@ var authToken string
 
 func init() {
 	commands = []*Command{
-		&Command{"login",  `Login to the Judge`, u_login, login},
+		&Command{"login", `Login to the Judge`, u_login, login},
 		&Command{"logout", `Logout from the Judge`, u_logout, logout},
-		&Command{"list",   `List all problems`, u_list, list},
+		&Command{"passwd", `Change your Judge's password`, u_passwd, passwd},
+		&Command{"list", `List all problems`, u_list, list},
 		&Command{"search", `Search for problems`, u_search, search},
-		&Command{"show",   `Show the problem's statement`, u_show, show},
+		&Command{"show", `Show the problem's statement`, u_show, show},
 		&Command{"submit", `Submit a problem to the judge`, u_submit, submit},
 		// grz config??
 		&Command{"help", ``, "", help},

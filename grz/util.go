@@ -34,6 +34,10 @@ func checkTwoArgs(cmd string, iargs []string) (a, b string) {
 	return oargs[0], oargs[1]
 }
 
+func checkZeroArgs(cmd string, iargs []string) {
+	_ = checkNArgs(0, cmd, iargs)
+}
+
 func maybeCreateDir(dir string) error {
 	info, err := os.Stat(dir)
 	if err == nil {
