@@ -43,7 +43,7 @@ func main() {
 	flag.Parse()
 	args := flag.Args()
 	if len(args) != 1 {
-		fmt.Fprintf(os.Stderr, "Wrong number of arguments")
+		fmt.Fprintf(os.Stderr, "Wrong number of arguments\n")
 		os.Exit(3)
 	}
 	C.max_cpu_seconds = C.int(MaxCpuSeconds)
