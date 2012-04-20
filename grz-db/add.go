@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"garzon/db"
-	"garzon/eval"
+	"github.com/pauek/garzon/db"
+	"github.com/pauek/garzon/eval"
 	"path/filepath"
 )
 

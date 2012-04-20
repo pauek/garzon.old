@@ -1,7 +1,7 @@
 package main
 
 import (
-	_ "garzon/grz-judge/client"
+	_ "github.com/pauek/garzon/grz-judge/client"
 )
 
 const u_list = `grz list`

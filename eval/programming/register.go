@@ -3,7 +3,7 @@ package programming
 
 import (
 	"encoding/gob"
-	"garzon/db"
+	"github.com/pauek/garzon/db"
 )
 
 func init() {

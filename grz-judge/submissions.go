@@ -1,8 +1,8 @@
 package main
 
 import (
-	"garzon/db"
-	"garzon/eval"
+	"github.com/pauek/garzon/db"
+	"github.com/pauek/garzon/eval"
 	"sync"
 	"time"
 )

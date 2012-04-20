@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"testing"
 
-	"garzon/db"
-	"garzon/eval"
+	"github.com/pauek/garzon/db"
+	"github.com/pauek/garzon/eval"
 )	
 
 var ID string

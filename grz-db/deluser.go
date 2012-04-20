@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"garzon/db"
+	"github.com/pauek/garzon/db"
 )
 
 const u_deluser = `grz deluser <login>`

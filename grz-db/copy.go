@@ -1,7 +1,7 @@
 package main
 
 import (
-	_ "garzon/db"
+	_ "github.com/pauek/garzon/db"
 )
 
 const u_copy = `grz copy [options] <directory>

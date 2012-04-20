@@ -10,8 +10,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"garzon/eval"
-	prog "garzon/eval/programming"
+	"github.com/pauek/garzon/eval"
+	prog "github.com/pauek/garzon/eval/programming"
 )
 
 func init() {

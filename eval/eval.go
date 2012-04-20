@@ -3,7 +3,7 @@ package eval
 import (
 	"encoding/gob"
 	"fmt"
-	"garzon/db"
+	"github.com/pauek/garzon/db"
 	"time"
 )
 

@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"garzon/db"
-	"garzon/eval"
+	"github.com/pauek/garzon/db"
+	"github.com/pauek/garzon/eval"
 )
 
 const u_delete = `grz delete <ProblemID>`

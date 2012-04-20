@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"bytes"
 	"os/exec"
-	"garzon/db"
+	"github.com/pauek/garzon/db"
 )
 
 type Evaluator struct {

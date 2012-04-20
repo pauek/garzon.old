@@ -3,7 +3,7 @@ package main
 import (
 	"code.google.com/p/go.crypto/bcrypt"
 	"fmt"
-	"garzon/db"
+	"github.com/pauek/garzon/db"
 )
 
 const u_adduser = `grz adduser <login>`

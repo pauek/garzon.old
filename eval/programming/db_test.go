@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
-	"garzon/eval"
-	"garzon/db"
+	"github.com/pauek/garzon/eval"
+	"github.com/pauek/garzon/db"
 )
 
 // var filesprob *Problem [declared in programming_test.go]

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"garzon/eval"
+	"github.com/pauek/garzon/eval"
 )
 
 const remotePort = 60000

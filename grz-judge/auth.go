@@ -4,7 +4,7 @@ import (
 	"code.google.com/p/go.crypto/bcrypt"
 	"crypto/rand"
 	"encoding/base64"
-	"garzon/db"
+	"github.com/pauek/garzon/db"
 	"io"
 	"net/http"
 )

@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"strings"
 	"path/filepath"
-	"garzon/db"
+	"github.com/pauek/garzon/db"
 )
 
 // InputTester

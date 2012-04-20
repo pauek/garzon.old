@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"garzon/db"
-	"garzon/eval"
-	_ "garzon/eval/programming"
+	"github.com/pauek/garzon/db"
+	"github.com/pauek/garzon/eval"
+	_ "github.com/pauek/garzon/eval/programming"
 	"log"
 	"strings"
 )

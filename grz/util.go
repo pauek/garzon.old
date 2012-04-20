@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"garzon/grz-judge/client"
+	"github.com/pauek/garzon/grz-judge/client"
 	"io/ioutil"
 	"os"
 	"path/filepath"

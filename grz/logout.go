@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"garzon/grz-judge/client"
+	"github.com/pauek/garzon/grz-judge/client"
 )
 
 const u_logout = `grz logout <user>`

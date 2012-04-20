@@ -12,9 +12,9 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"garzon/db"
-	"garzon/eval"
-	"garzon/eval/programming/lang"
+	"github.com/pauek/garzon/db"
+	"github.com/pauek/garzon/eval"
+	"github.com/pauek/garzon/eval/programming/lang"
 )
 
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"garzon/grz-judge/client"
+	"github.com/pauek/garzon/grz-judge/client"
 )
 
 const u_submit = `grz submit <ProblemID> <filename>`

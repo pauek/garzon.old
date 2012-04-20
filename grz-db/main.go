@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	_ "garzon/eval/programming"
+	_ "github.com/pauek/garzon/eval/programming"
 	"os"
 )
 
