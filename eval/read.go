@@ -70,7 +70,7 @@ func ReadFromID(id string) (Problem *Problem, err error) {
 	var dirs []string
 	for _, root := range grzPath() {
 		glob := filepath.Join(root, reldir) + ".*"
-		dirs, err := filepath.Glob(glob)
+		dirs, err = filepath.Glob(glob)
 		if err != nil {
 			return nil, fmt.Errorf("Cannot glob '%s.*'\n", glob)
 		}
