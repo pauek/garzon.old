@@ -1,48 +1,46 @@
-
 package programming
 
 import (
-	"os"
-	"fmt"
-	"log"
 	"bytes"
-	"strings"
-	"os/exec"
-	"syscall"
+	"fmt"
 	"io/ioutil"
+	"log"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
+	"syscall"
 
 	"github.com/pauek/garzon/db"
 	"github.com/pauek/garzon/eval"
 	"github.com/pauek/garzon/eval/programming/lang"
 )
 
-
 // context /////////////////////////////////////////////////
 
 type context struct {
-	dir  string // working directory
-	mode string // current program: "model" or "accused"
-	limits Constraints 
-	lang map[string]string
-	code map[string]string
+	dir    string // working directory
+	mode   string // current program: "model" or "accused"
+	limits Constraints
+	lang   map[string]string
+	code   map[string]string
 
 	State interface{}
 }
 
-func (C *context) Dir()     string { return C.dir }
+func (C *context) Dir() string     { return C.dir }
 func (C *context) ExecDir() string { return C.dir + "/eval" }
-func (C *context) Mode()    string { return C.mode }
+func (C *context) Mode() string    { return C.mode }
 
 func newContext(dir string, model, accused Code, ev Evaluator) *context {
 	C := new(context)
 	C.dir = dir
 	C.limits = ev.Limits
-	C.lang = map[string]string {
+	C.lang = map[string]string{
 		"model":   model.Lang,
 		"accused": accused.Lang,
 	}
-	C.code = map[string]string {
+	C.code = map[string]string{
 		"model":   model.Text,
 		"accused": accused.Text,
 	}
@@ -55,23 +53,23 @@ func (C *context) CreateDirectory() error {
 		return fmt.Errorf("Couldn't remove directory '%s'", C.dir)
 	}
 	for _, subdir := range []string{"", "/.model", "/.accused", "/eval"} {
-		if err := os.Mkdir(C.dir + subdir, 0700); err != nil {
-			return fmt.Errorf("Couldn't make directory '%s'", C.dir + subdir)
+		if err := os.Mkdir(C.dir+subdir, 0700); err != nil {
+			return fmt.Errorf("Couldn't make directory '%s'", C.dir+subdir)
 		}
 	}
 	return nil
 }
 
-func (C *context)	WriteAndCompile(whom string) error {
+func (C *context) WriteAndCompile(whom string) error {
 	L, ok := lang.Languages[C.lang[whom]]
-	if ! ok {
+	if !ok {
 		return fmt.Errorf("Unsupported language '%s'", C.lang[whom])
-	} 
+	}
 	codefile := fmt.Sprintf("%s/.%s/code.%s", C.dir, whom, L.Extension)
 	if err := ioutil.WriteFile(codefile, []byte(C.code[whom]), 0600); err != nil {
 		return fmt.Errorf("Couldn't write %s file '%s'", whom, codefile)
 	}
-	exefile  := fmt.Sprintf("%s/.%s/exe", C.dir, whom)
+	exefile := fmt.Sprintf("%s/.%s/exe", C.dir, whom)
 	log.Printf("Compiling '%s' ('%s')", codefile, prefix(C.code[whom], 30))
 	if err := L.Functions.Compile(codefile, exefile); err != nil {
 		os.RemoveAll(C.dir)
@@ -85,18 +83,18 @@ func (C *context) SwitchTo(whom string) error {
 		return fmt.Errorf("Program '%s' not known")
 	}
 	from := fmt.Sprintf("%s/.%s/exe", C.dir, whom)
-	to   := fmt.Sprintf("%s/eval/exe", C.dir)
+	to := fmt.Sprintf("%s/eval/exe", C.dir)
 	cmd := exec.Command("cp", from, to)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("Couldn't copy '%s' to '%s'", from, to)
-	} 
+	}
 	C.mode = whom
 	return nil
 }
 
 func (C *context) MakeCommand() (cmd *exec.Cmd) {
 	args := []string{}
-	addOption := func (flag string, val int) {
+	addOption := func(flag string, val int) {
 		if val > 0 {
 			args = append(args, flag)
 			args = append(args, fmt.Sprintf("%d", val))
@@ -108,8 +106,8 @@ func (C *context) MakeCommand() (cmd *exec.Cmd) {
 	if C.mode == "accused" {
 		args = append(args, "-a")
 	}
-	args = append(args, C.dir + "/eval")
-   cmd = exec.Command(GrzJail, args...)
+	args = append(args, C.dir+"/eval")
+	cmd = exec.Command(GrzJail, args...)
 	cmd.Dir = C.ExecDir()
 	return
 }
@@ -125,20 +123,20 @@ func (C *context) Destroy() error {
 // Evaluator //////////////////////////////////////////////////
 
 var (
-	BaseDir   string  // base working directory 
-	KeepFiles bool    // keep files after evaluation (debug)
-	GrzJail   string  // path of grz-jail
+	BaseDir   string // base working directory 
+	KeepFiles bool   // keep files after evaluation (debug)
+	GrzJail   string // path of grz-jail
 )
 
 func init() {
-   BaseDir   = os.Getenv("HOME")
+	BaseDir = os.Getenv("HOME")
 	KeepFiles = false
-	GrzJail   = "grz-jail" // assume its in the PATH
+	GrzJail = "grz-jail" // assume its in the PATH
 }
 
 func (E Evaluator) Evaluate(P *eval.Problem, Solution string) eval.Veredict {
 	// FIXME: get lang from string
-	C, err := E.prepareContext(P, Code{Text: Solution, Lang:"c++"}) 
+	C, err := E.prepareContext(P, Code{Text: Solution, Lang: "c++"})
 	if err != nil {
 		return eval.Veredict{Message: fmt.Sprintf("%s\n", err)}
 	}
@@ -152,7 +150,7 @@ func (E Evaluator) Evaluate(P *eval.Problem, Solution string) eval.Veredict {
 	if !KeepFiles {
 		C.Destroy()
 	}
-	var message string
+	message := "<No message>"
 	for _, m := range []string{"Execution Error", "Wrong Answer", "Accepted"} {
 		if ver[m] {
 			message = m
@@ -160,21 +158,21 @@ func (E Evaluator) Evaluate(P *eval.Problem, Solution string) eval.Veredict {
 		}
 	}
 	return eval.Veredict{
-	   Message: message,
-	   Details: db.Obj{VeredictDetails{results}},
+		Message: message,
+		Details: db.Obj{VeredictDetails{results}},
 	}
 }
 
 func (E Evaluator) prepareContext(P *eval.Problem, accused Code) (C *context, err error) {
-	id  := hash(accused.Text)
+	id := hash(accused.Text)
 	// FIXME: Get Lang from the string itself
 	model := Code{Text: P.Solution, Lang: "c++"}
-	C = newContext(BaseDir + "/" + id, model, accused, E)
-	if err := C.CreateDirectory(); err != nil { 
-		return nil, err 
+	C = newContext(BaseDir+"/"+id, model, accused, E)
+	if err := C.CreateDirectory(); err != nil {
+		return nil, err
 	}
-	if err := C.WriteAndCompile("model"); err != nil { 
-		return nil, err 
+	if err := C.WriteAndCompile("model"); err != nil {
+		return nil, err
 	}
 	if err := C.WriteAndCompile("accused"); err != nil {
 		return nil, err
@@ -183,13 +181,13 @@ func (E Evaluator) prepareContext(P *eval.Problem, accused Code) (C *context, er
 }
 
 func (E Evaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
-	runtest := func (whom string) bool {
-		if err = C.SwitchTo(whom); err != nil { 
-			return false 
+	runtest := func(whom string) bool {
+		if err = C.SwitchTo(whom); err != nil {
+			return false
 		}
 		cmd := C.MakeCommand()
-		if err = T.SetUp(C, cmd); err != nil { 
-			return false 
+		if err = T.SetUp(C, cmd); err != nil {
+			return false
 		}
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
@@ -201,17 +199,23 @@ func (E Evaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
 				lines := strings.Split(stderr.String(), "\n")
 				R.Veredict = lines[0]
 				R.Reason.Obj = &SimpleReason{strings.Join(lines[1:], "\n")}
+			} else {
+				panic("Internal error")
 			}
 			return false
 		}
-		if err = T.CleanUp(C); err != nil { 
-			return false 
+		if err = T.CleanUp(C); err != nil {
+			return false
 		}
 		return true
 	}
 	T.Prepare(C)
-	if ! runtest("model")   { return }
-	if ! runtest("accused") { return }
+	if !runtest("model") {
+		return
+	}
+	if !runtest("accused") {
+		return
+	}
 	V := T.Veredict(C)
 	*R = V
 	return nil
@@ -219,13 +223,13 @@ func (E Evaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
 
 func getExitStatus(err error) int {
 	exiterror, ok := err.(*exec.ExitError)
-	if ! ok { 
-		log.Printf("Cannot get ProcessState") 
+	if !ok {
+		log.Printf("Cannot get ProcessState")
 		log.Fatalf("Error was: %s\n", err)
 	}
 	status, ok := exiterror.Sys().(syscall.WaitStatus)
-	if ! ok { 
-		log.Fatalf("Cannot get syscall.WaitStatus") 
+	if !ok {
+		log.Fatalf("Cannot get syscall.WaitStatus")
 	}
 	return status.ExitStatus()
 }
@@ -241,7 +245,7 @@ func (E *Evaluator) ReadDir(dir string, prob *eval.Problem) error {
 	if err != nil {
 		return fmt.Errorf("Cannot look for 'solution.*': %s\n")
 	}
-	
+
 	var sol string
 	for i, m := range matches {
 		if i == 0 {
@@ -259,7 +263,7 @@ func (E *Evaluator) ReadDir(dir string, prob *eval.Problem) error {
 	// TODO: Put extension in the first line:
 	//   prob.Solution = fmt.Sprintf("c++\n%s", solstr)
 	prob.Solution = string(solstr)
-	
+
 	// path/filepath.glob: "New matches are added in 
 	//   lexicographical order" (we use that for now)
 	matches, err = filepath.Glob(dir + "/test.*.*")
@@ -271,7 +275,7 @@ func (E *Evaluator) ReadDir(dir string, prob *eval.Problem) error {
 		typ := getType(m)
 		obj := db.ObjFromType("prog.test." + typ)
 		tester, ok := obj.(Readable)
-		if ! ok {
+		if !ok {
 			return fmt.Errorf("Type '%s' is not a programming.Tester", typ)
 		}
 		if err := tester.ReadFrom(m); err != nil {

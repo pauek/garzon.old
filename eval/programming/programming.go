@@ -1,24 +1,23 @@
-
 package programming
 
 import (
-	"fmt"
 	"bytes"
-	"os/exec"
+	"fmt"
 	"github.com/pauek/garzon/db"
+	"os/exec"
 )
 
 type Evaluator struct {
-	Limits   Constraints
-	Tests    []db.Obj
+	Limits Constraints
+	Tests  []db.Obj
 }
 
 type Code struct {
 	Lang, Text string
 }
 
-type Constraints struct { 
-	Memory, Time, FileSize int 
+type Constraints struct {
+	Memory, Time, FileSize int
 }
 
 type Tester interface {
@@ -39,21 +38,25 @@ type VeredictDetails struct {
 func (vd VeredictDetails) String() string {
 	var b bytes.Buffer
 	for i, r := range vd.Results {
-		fmt.Fprintf(&b, "%d. %s\n", i, r)
+		fmt.Fprintf(&b, "%d. %s\n", i+1, r)
 	}
 	return b.String()
 }
 
 type TestResult struct {
 	Veredict string
-	Reason db.Obj
+	Reason   db.Obj
 }
 
 func (tr TestResult) String() string {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "%s", tr.Veredict)
 	if tr.Veredict != "Accepted" {
-		fmt.Fprintf(&b, ":\n%s\n", tr.Reason.Obj)
+		if tr.Reason.Obj != nil {
+			fmt.Fprintf(&b, ":\n%v\n", tr.Reason.Obj)
+		} else {
+			fmt.Fprintf(&b, "\n")
+		}
 	}
 	return b.String()
 }
@@ -65,4 +68,3 @@ type SimpleReason struct {
 func (sr SimpleReason) String() string {
 	return sr.Message
 }
-
