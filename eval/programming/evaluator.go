@@ -198,7 +198,7 @@ func (E Evaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
 				err = nil
 				lines := strings.Split(stderr.String(), "\n")
 				R.Veredict = lines[0]
-				R.Reason.Obj = &SimpleReason{strings.Join(lines[1:], "\n")}
+				R.Reason.Obj = &SimpleReason{lines[1]}
 			} else {
 				panic("Internal error")
 			}

@@ -24,7 +24,6 @@ func init() {
 		log.Fatal("init: Cannot create dir '%s'", dir)
 	}
 	BaseDir = dir
-	Register()
 }
 
 var keepDir bool
@@ -135,8 +134,15 @@ func TestEcho(t *testing.T) {
 
 func testExecutionError(t *testing.T, model, accused string, expected string) {
 	V := evalWithInputs(model, accused, OneEmptyInput)
-	R0 := firstRes(V)
-	found, err := regexp.MatchString(expected, R0)
+	R0 := results(V)[0]
+	if R0.Veredict != "Execution Error" {
+		t.Errorf("Should be 'Execution Error'")
+	}
+	reason, ok := R0.Reason.Obj.(*SimpleReason)
+	if !ok {
+		t.Errorf("Reason is no a SimpleReason")
+	}
+	found, err := regexp.MatchString(expected, reason.Message)
 	if err != nil {
 		t.Errorf(`Error matching regexp "%s" against "%s"`, expected, R0)
 	}
@@ -194,7 +200,7 @@ int main() {
 func TestForbiddenSyscall1(t *testing.T) {
 	opener := `#include <fstream>
    int main() { std::ofstream F("file"); F << '\n'; }`
-	testExecutionError(t, Minimal, opener, `Forbidden Syscall \[open\("file"\)\]`)
+	testExecutionError(t, Minimal, opener, `Forbidden Syscall 'open\("file"\)'`)
 }
 
 func TestForbiddenSyscall(t *testing.T) {
@@ -204,7 +210,7 @@ func TestForbiddenSyscall(t *testing.T) {
       execve("/bin/ls", argv, envp); 
    }`
 	testExecutionError(t, Minimal, execer, 
-		`Forbidden Syscall \[_execve\([0-9a-f]*,[0-9a-f]*,[0-9a-f]*\)\]`)
+		`Forbidden Syscall '_execve\([0-9a-f]*,[0-9a-f]*,[0-9a-f]*\)'`)
 }
 
 // TODO: Forbidden Syscall (fork) ?
@@ -281,7 +287,15 @@ func TestFileTester(t *testing.T) {
 
 	// Creates a file named 'D' instead of 'C'
 	V = filesEv.Evaluate(filesProb, wrongFiles1)
-	if firstRes(V) != "Forbidden Syscall [open(\"D\")]" {
+	R0 := results(V)[0]
+	if R0.Veredict != "Execution Error" {
+		t.Errorf("Should be 'Execution Error'")
+	}
+	reason, ok := R0.Reason.Obj.(*SimpleReason)
+	if !ok {
+		t.Errorf("Reason is no a SimpleReason")
+	}
+	if reason.Message != "Forbidden Syscall 'open(\"D\")'" {
 		t.Errorf("Wrong Veredict")
 	}
 
