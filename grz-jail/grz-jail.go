@@ -38,8 +38,8 @@ func main() {
 	flag.Usage = usage
 	flag.IntVar(&MaxCpuSeconds, "t", 2, "<dummy>")
 	flag.IntVar(&MaxMemory, "m", 64*1024*1024, "<dummy>")
-	flag.IntVar(&MaxCpuSeconds, "f", 1024, "<dummy>")
-	flag.BoolVar(&AccusedMode, "b", false, "<dummy>")
+	flag.IntVar(&MaxFileSize, "f", 1024, "<dummy>")
+	flag.BoolVar(&AccusedMode, "a", false, "<dummy>")
 	flag.Parse()
 	args := flag.Args()
 	if len(args) != 1 {

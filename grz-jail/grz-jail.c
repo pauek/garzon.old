@@ -627,7 +627,3 @@ void grzjail(char *dir) {
       guardian();
    }
 }
-
-/* Local variables: */
-/* compile-command: "gcc -Wall -static -o $HOME/bin/grz-jail grz-jail.c" */
-/* End: */
