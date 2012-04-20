@@ -42,21 +42,41 @@ func TestProblem(t *testing.T) {
 			Obj{&Test2{B: 45}},
 		},
 	}
-	rev, err := db.Rev(pid)
+	rev, err := db.Rev(pid + "1")
 	if rev != "" {
 		if err := db.Delete(pid, rev); err != nil {
 			t.Errorf("Can't delete rev '%s' of '%s': %s\n", rev, pid, err)
 			return
 		}
 	}
-	err = db.Put(pid, P)
+	err = db.Put(pid + "1", P)
+	if err != nil {
+		t.Errorf("Cannot put: %s\n", err)
+	}
+	err = db.Put(pid + "2", P)
 	if err != nil {
 		t.Errorf("Cannot put: %s\n", err)
 	}
 
+	// AllIDs
+	ids, err := db.AllIDs()
+	if err != nil {
+		t.Errorf("AllIDs failed: %s\n", err)
+	}
+	if len(ids) != 2 {
+		t.Errorf("AllIDs should have length 1")
+	} else {
+		if ids[0] != pid + "1" {
+			t.Errorf("First ID should be '%s'", pid)
+		}
+		if ids[1] != pid + "2" {
+			t.Errorf("First ID should be '%s'", pid)
+		}
+	}
+	
 	// Get
 	var obj Problem
-	rev, err = db.Get(pid, &obj)
+	rev, err = db.Get(pid + "1", &obj)
 	if err != nil {
 		t.Errorf("Cannot get: %s\n", err)
 	}

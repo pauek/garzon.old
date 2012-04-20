@@ -256,6 +256,7 @@ func (D *Database) Get(id string, v interface{}) (rev string, err error) {
 		err = fmt.Errorf("Get: HTTP status = '%s'\n", resp.Status)
 		return
 	}
+	defer resp.Body.Close()
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		err = fmt.Errorf("Get: cannot read response body: %s\n", err)
@@ -286,6 +287,46 @@ func (D *Database) PutOrUpdate(id string, v interface{}) error {
 		return D.Put(id, v) 
 	} 
 	return D.Update(id, rev, v)
+}
+
+type all struct {
+	TotalRows int `json:"total_rows"`
+	Offset int `json:"offset"`
+	Rows []row `json:"rows"`
+}
+
+type row struct {
+	Id string `json:"id"`
+}
+
+func (D *Database) AllIDs() (ids []string, err error) {
+	resp, err := client.Get(D.url("_all_docs"))
+	switch {
+	case err != nil:
+		err = fmt.Errorf("AllIDs: http.client error: %s\n", err)
+		return
+	case resp.StatusCode == 404:
+		err = fmt.Errorf("Internal Error: Database not found")
+		return
+	case resp.StatusCode != 200:
+		err = fmt.Errorf("Rev: HTTP status = '%s'\n", resp.Status)
+		return
+	}
+	defer resp.Body.Close()
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		err = fmt.Errorf("AllIDs: cannot read response body: %s\n", err)
+		return 
+	}
+	var allids all
+	if err = json.Unmarshal(data, &allids); err != nil {
+		err = fmt.Errorf("AllIDs: json.Unmarshal error: %s\n", err)
+		return 
+	}
+	for _, r := range allids.Rows {
+		ids = append(ids, r.Id)
+	}
+	return ids, nil
 }
 
 func (D *Database) put(id, rev string, v interface{}) error {
