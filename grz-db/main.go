@@ -18,8 +18,8 @@ var commands []*Command
 func init() {
 	commands = []*Command{
 		&Command{"add", `Add a problem`, u_add, add},
-		&Command{"copy", `Copy a problem`, u_copy, coppy},
 		&Command{"update", `Update a problem`, u_update, update},
+		&Command{"copy", `Copy a problem`, u_copy, coppy},
 		&Command{"delete", `Delete a problem`, u_delete, delette},
 		&Command{"list", `List the problems' IDs`, u_list, list},
 		&Command{"adduser", `Add a user`, u_adduser, adduser},
