@@ -27,7 +27,7 @@ var (
 const usage = `usage: grz-judge [options...] [accounts...]
 
 Options:
-	--copy,    Copy 'grz-{eval,jail}' to remote accounts
+   --copy,    Copy 'grz-{eval,jail}' to remote accounts
    --debug,   Tell 'grz-eval' to keep evaluation directories
    --local,   Local mode (only listen to localhost:50000)
    --open,    Open mode (no authentication, submissions not stored)
