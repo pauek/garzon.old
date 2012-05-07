@@ -32,6 +32,9 @@ Options:
    --local,   Local mode (only listen to localhost:50000)
    --open,    Open mode (no authentication, submissions not stored)
    --files,   Doesn't touch DB, reads problems from disk (implies --open)
+
+Environment:
+	GRZ_PATH   List of colon-separated directories with problems (for --files)
 					
 `
 
@@ -185,8 +188,10 @@ func main() {
 	}
 
 	if Mode["files"] { 
-		Mode["open"] = true // --files => --open
-		log.Printf("Mode '--open'")
+		if !Mode["open"] {
+			Mode["open"] = true // --files => --open
+			log.Printf("Mode '--open'")
+		}
 	}
 	if !Mode["files"] {
 		Problems = getDB("problems")

@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"net/rpc"
 	"os/exec"
 	"strings"
 	"time"
+	"code.google.com/p/go.net/websocket"
 
 	"github.com/pauek/garzon/eval"
 )
@@ -20,7 +20,7 @@ type Evaluator struct {
 	location map[string]string
 	port     int
 	cmd      *exec.Cmd
-	client   *rpc.Client
+	ws       *websocket.Conn
 	stderr   bytes.Buffer
 }
 
@@ -108,10 +108,12 @@ func (E *Evaluator) StartLocalProcess() {
 	}
 }
 
-func (E *Evaluator) ConnectRPC() {
-	log.Printf("Dialing RPC...\n")
+func (E *Evaluator) ConnectWebSocket() {
+	log.Printf("Dialing WebSocket...\n")
 	var err error
-	E.client, err = rpc.DialHTTP("tcp", fmt.Sprintf("localhost:%d", E.port))
+	orig := "http://localhost/"
+	url := fmt.Sprintf("ws://localhost:%d/ws", E.port)
+	E.ws, err = websocket.Dial(url, "", orig)
 	if err != nil {
 		log.Printf("\n\n%s\n\n", E.stderr.String())
 		log.Fatalf("Error dialing: %s\n", err)
@@ -127,16 +129,33 @@ func (E *Evaluator) HandleSubmissions() {
 		}
 		Queue.SetStatus(id, "In Process")
 		sub := Queue.Get(id)
-		var V eval.Veredict
 		log.Printf("Submitting '%s'", sub.Problem.Title)
-		err := E.client.Call("Eval.Submit", sub, &V)
-		if err != nil {
+		log.Printf("Problem: %v", sub.Problem)
+		if err := websocket.JSON.Send(E.ws, sub); err != nil {
 			log.Printf("\n\n%s\n\n", E.stderr.String())
 			log.Fatalf("Call failed: %s\n", err)
+			continue
+		} 
+		var err error
+		var resp eval.Response
+		for {
+			if err = websocket.JSON.Receive(E.ws, &resp); err != nil {
+				break
+			}
+			if resp.Status == "Resolved" {
+				break
+			}
+			// TODO: Handle updates...
+		}
+		if err != nil {
+			log.Printf("Error: %s %+v", err, resp)
+			fmt.Printf("\nREMOTE:\n%s\nLOCAL:\n", E.stderr.String())
+			E.stderr.Reset() // FIXME: se corta o algo
+			continue
 		}
 		sub.Status = "Resolved"
 		sub.Resolved = time.Now()
-		sub.Veredict = V
+		sub.Veredict = *resp.Veredict
 		sub.Problem = nil
 		fmt.Printf("\nREMOTE:\n%s\nLOCAL:\n", E.stderr.String())
 		E.stderr.Reset() // FIXME: se corta o algo
@@ -144,7 +163,7 @@ func (E *Evaluator) HandleSubmissions() {
 }
 
 func (E *Evaluator) CleanUp() {
-	E.client.Close()
+	E.ws.Close()
 	if E.cmd != nil {
 		E.cmd.Process.Kill()
 	}
@@ -166,7 +185,7 @@ func (E *Evaluator) Run(done chan bool) {
 		E.StartLocalProcess()
 		time.Sleep(500 * time.Millisecond) // FIXME
 	}
-	E.ConnectRPC()
+	E.ConnectWebSocket()
 	E.HandleSubmissions()
 	E.CleanUp()
 	done <- true

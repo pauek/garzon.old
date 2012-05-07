@@ -1,7 +1,6 @@
 package eval
 
 import (
-	"encoding/gob"
 	"fmt"
 	"github.com/pauek/garzon/db"
 	"time"
@@ -10,7 +9,7 @@ import (
 type Submission struct {
 	User      string `json:",omitempty"`
 	ProblemID string
-	Problem   *Problem `json:"-"`
+	Problem   *Problem
 	Solution  string
 	Status    string
 	Submitted time.Time
@@ -38,9 +37,14 @@ type DirReader interface {
 	ReadDir(dir string, Problem *Problem) error
 }
 
+type Response struct {
+	Status string
+	Veredict *Veredict
+}
+
 type Eval bool
 
-func (E *Eval) Submit(S Submission, V *Veredict) error {
+func Submit(S Submission, V *Veredict) error {
 	ev, ok := S.Problem.Evaluator.Obj.(Evaluator)
 	if !ok {
 		return fmt.Errorf("Wrong Evaluator")
@@ -49,12 +53,8 @@ func (E *Eval) Submit(S Submission, V *Veredict) error {
 	return nil
 }
 
-// RPC
 func init() {
 	db.Register("eval.Problem", Problem{})
 	db.Register("eval.Submission", Submission{})
 	db.Register("eval.Veredict", Veredict{})
-	gob.Register(Problem{})
-	gob.Register(Submission{})
-	gob.Register(Veredict{})
 }

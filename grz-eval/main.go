@@ -4,19 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
-	"net/rpc"
 	"os"
 	"path/filepath"
+	"code.google.com/p/go.net/websocket"
 
 	"github.com/pauek/garzon/eval"
 	prog "github.com/pauek/garzon/eval/programming"
 )
-
-func init() {
-	rpc.Register(new(eval.Eval))
-}
 
 const usage = `usage: grz-eval [options...]
 
@@ -27,6 +22,27 @@ Options:
    -k,          Keep Files
 
 `
+
+func submissions(ws *websocket.Conn) {
+	for {
+		var sub eval.Submission
+		err := websocket.JSON.Receive(ws, &sub)
+		if err != nil {
+			log.Printf("websocket.JSON.Receive error: %s", err)
+			err := websocket.JSON.Send(ws, eval.Response{Status: "Error"})
+			if err != nil {
+				log.Printf("websocket.JSON.Send 'Error' error: %s", err)
+			}
+		}
+		log.Printf("Received: '%+v'", sub)
+		var V eval.Veredict
+		eval.Submit(sub, &V)
+		err = websocket.JSON.Send(ws, eval.Response{Status: "Resolved", Veredict: &V})
+		if err != nil {
+			log.Printf("websocket.JSON.Send 'Resolved' error: %s", err)
+		}
+	}
+}
 
 func main() {
 	flag.Usage = func() {
@@ -48,12 +64,10 @@ func main() {
 		}
 		prog.BaseDir = tmpdir
 	}
-
-	rpc.HandleHTTP()
-	L, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	log.Printf("grz-eval: starting server\n")
+	http.Handle("/ws", websocket.Handler(submissions))
+	err := http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
 	if err != nil {
 		log.Fatal("Listen error:", err)
 	}
-	log.Printf("grz-eval: starting server\n")
-	http.Serve(L, nil)
 }
