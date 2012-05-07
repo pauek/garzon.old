@@ -130,7 +130,6 @@ func (E *Evaluator) HandleSubmissions() {
 		Queue.SetStatus(id, "In Process")
 		sub := Queue.Get(id)
 		log.Printf("Submitting '%s'", sub.Problem.Title)
-		log.Printf("Problem: %v", sub.Problem)
 		if err := websocket.JSON.Send(E.ws, sub); err != nil {
 			log.Printf("\n\n%s\n\n", E.stderr.String())
 			log.Fatalf("Call failed: %s\n", err)
@@ -146,7 +145,7 @@ func (E *Evaluator) HandleSubmissions() {
 			if resp.Status == "Resolved" {
 				break
 			}
-			// TODO: Handle updates...
+			Queue.SetStatus(id, resp.Status)
 		}
 		if err != nil {
 			log.Printf("Error: %s %+v", err, resp)
@@ -154,7 +153,7 @@ func (E *Evaluator) HandleSubmissions() {
 			E.stderr.Reset() // FIXME: se corta o algo
 			continue
 		}
-		sub.Status = "Resolved"
+		Queue.SetStatus(id, "Resolved")
 		sub.Resolved = time.Now()
 		sub.Veredict = *resp.Veredict
 		sub.Problem = nil

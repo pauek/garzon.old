@@ -1,6 +1,7 @@
 package main
 
 import (
+	"code.google.com/p/go.net/websocket"
 	"flag"
 	"fmt"
 	"github.com/pauek/garzon/db"
@@ -8,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 const (
@@ -17,8 +19,8 @@ const (
 
 var (
 	Server string
-	Mode  = make(map[string]bool)
-	Modes = []string{"copy", "debug", "local", "open", "files"}
+	Mode   = make(map[string]bool)
+	Modes  = []string{"copy", "debug", "local", "open", "files"}
 
 	Problems *db.Database
 	Users    *db.Database
@@ -95,7 +97,7 @@ func list(w http.ResponseWriter, req *http.Request) {
 	if Mode["files"] {
 		listProblems(w)
 		return
-	} 
+	}
 	ids, err := Problems.AllIDs()
 	if err != nil {
 		fmt.Fprintf(w, "ERROR: Cannot get AllIDs")
@@ -137,11 +139,27 @@ func submit(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
+func wsStatus(id string) websocket.Handler {
+	return func(ws *websocket.Conn) {
+		for {
+			msg := Queue.GetStatus(id)
+			err := websocket.Message.Send(ws, []byte(msg))
+			if err != nil {
+				break
+			}
+			if msg == "Resolved" || strings.HasPrefix(msg, "Error") {
+				break
+			}
+		}
+		
+	}
+}
+
 func status(w http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[len("/status/"):]
 	sub := Queue.Get(id)
 	if sub != nil {
-		fmt.Fprintf(w, "%s", sub.Status)
+		websocket.Handler(wsStatus(id)).ServeHTTP(w, req)
 		return
 	} else {
 		fmt.Fprint(w, "Not found\n")
@@ -150,19 +168,17 @@ func status(w http.ResponseWriter, req *http.Request) {
 
 func veredict(w http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[len("/veredict/"):]
-	switch sub := Queue.Get(id); {
-	case sub != nil && sub.Status != "Resolved":
-		fmt.Fprintf(w, "Not resolved\n")
-	case sub != nil:
-		V := sub.Veredict
-		fmt.Fprintf(w, "%s\n", V.Message)
-		if V.Message != "Accepted" && V.Details.Obj != nil {
-			fmt.Fprintf(w, "\n%v", V.Details.Obj)
-		}
-		Queue.Delete(id)
-	default:
+	sub := Queue.Get(id)
+	if sub == nil {
 		fmt.Fprint(w, "Not found\n")
+		return
 	}
+	V := sub.Veredict
+	fmt.Fprintf(w, "%s\n", V.Message)
+	if V.Message != "Accepted" && V.Details.Obj != nil {
+		fmt.Fprintf(w, "\n%v", V.Details.Obj)
+	}
+	Queue.Delete(id)
 }
 
 func main() {
@@ -187,7 +203,7 @@ func main() {
 		}
 	}
 
-	if Mode["files"] { 
+	if Mode["files"] {
 		if !Mode["open"] {
 			Mode["open"] = true // --files => --open
 			log.Printf("Mode '--open'")
@@ -210,7 +226,7 @@ func main() {
 	http.HandleFunc("/logout", wAuth(logout))
 	http.HandleFunc("/submit", wAuth(submit))
 	http.HandleFunc("/list", wAuth(list))
-	http.HandleFunc("/status/", wAuth(status))
+	http.HandleFunc("/status/", status)
 	http.HandleFunc("/veredict/", wAuth(veredict))
 
 	Url := fmt.Sprintf("%s:%d", Server, ListenPort)

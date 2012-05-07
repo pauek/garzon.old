@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/pauek/garzon/grz-judge/client"
 )
@@ -34,17 +33,12 @@ func submit(args []string) {
 	}
 	id := resp
 
-	for {
-		status, err := client.Status(id)
-		if err != nil {
-			_errx("Cannot get status: %s", err)
-		}
-		if status == "Resolved" {
-			break
-		}
+	err = client.Status(id, func(status string) {
 		fmt.Printf("\r                                         \r")
 		fmt.Printf("%s...", status)
-		time.Sleep(500 * time.Millisecond)
+	})
+	if err != nil {
+		_errx("%s", err)
 	}
 
 	veredict, err := client.Veredict(id)

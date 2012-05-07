@@ -13,10 +13,12 @@ type Submissions struct {
 	Channel    chan string
 	Mutex      sync.Mutex
 	inprogress map[string]*eval.Submission
+	progress   map[string]chan string
 }
 
 func (S *Submissions) Init() {
 	S.inprogress = make(map[string]*eval.Submission)
+	S.progress = make(map[string]chan string, 1)
 	S.Channel = make(chan string, MaxQueueSize)
 }
 
@@ -37,8 +39,9 @@ func (S *Submissions) Add(user string, pid string, problem *eval.Problem, sol st
 		Problem:   problem,
 		Solution:  sol,
 		Submitted: time.Now(),
-		Status:    "In Queue",
 	}
+	S.progress[ID] = make(chan string, 1)
+	S.progress[ID] <- "In queue"
 	S.Mutex.Unlock()
 	S.Channel <- ID
 	return
@@ -54,8 +57,12 @@ func (S *Submissions) Get(id string) (sub *eval.Submission) {
 
 func (S *Submissions) SetStatus(id, state string) {
 	S.Mutex.Lock()
-	S.inprogress[id].Status = state
+	S.progress[id] <- state
 	S.Mutex.Unlock()
+}
+
+func (S *Submissions) GetStatus(id string) string {
+	return <- S.progress[id]
 }
 
 func (S *Submissions) Delete(id string) {

@@ -10,7 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
+	"strings" 
+	"code.google.com/p/go.net/websocket"
 )
 
 var JudgeUrl string
@@ -166,25 +167,26 @@ func Submit(probid, filename string) (id string, err error) {
 	return firstLine(resp.Body)
 }
 
-func Status(subid string) (status string, err error) {
-	Url := fmt.Sprintf("%s/status/%s", JudgeUrl, subid)
-	req, err := http.NewRequest("GET", Url, nil)
-	if AuthToken != "" {
-		req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
-	}
+func Status(subid string, callback func(status string)) (err error) {
+	orig := JudgeUrl
+	url := fmt.Sprintf("%s/status/%s", JudgeUrl, subid)
+	url = strings.Replace(url, "http://", "ws://", 1)
 
-	resp, err := client.Do(req)
+	ws, err := websocket.Dial(url, "", orig)
 	if err != nil {
-		return "", fmt.Errorf("Cannot GET: %s", err)
+		return fmt.Errorf("Cannot Connect: %s", err)
 	}
-	switch {
-	case resp.StatusCode == 401:
-		return "", fmt.Errorf("Unauthorized")
-	case resp.StatusCode != 200:
-		return "", fmt.Errorf("Wrong status: %s", err)
+	for {
+		var msg string
+		if err := websocket.Message.Receive(ws, &msg); err != nil {
+			return fmt.Errorf("Message error: %s", err)
+		}
+		callback(msg)
+		if (msg == "Resolved") {
+			break
+		}
 	}
-	defer resp.Body.Close()
-	return firstLine(resp.Body)
+	return nil
 }
 
 func Veredict(subid string) (veredict string, err error) {

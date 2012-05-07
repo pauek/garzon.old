@@ -10,7 +10,6 @@ type Submission struct {
 	ProblemID string
 	Problem   *Problem
 	Solution  string
-	Status    string
 	Submitted time.Time
 	Resolved  time.Time
 	Veredict  Veredict
