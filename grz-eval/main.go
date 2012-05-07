@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+"strings"
 	"log"
 	"net/http"
 	"os"
@@ -34,9 +35,19 @@ func submissions(ws *websocket.Conn) {
 				log.Printf("websocket.JSON.Send 'Error' error: %s", err)
 			}
 		}
-		log.Printf("Received: '%+v'", sub)
 		var V eval.Veredict
-		eval.Submit(sub, &V)
+		progress := make(chan string)
+		go eval.Submit(sub, &V, progress)
+		for {
+			msg := <- progress
+			if msg == "Resolved" || strings.HasPrefix(msg, "Error") {
+				break
+			}
+			err = websocket.JSON.Send(ws, eval.Response{Status: msg, Veredict: nil})
+			if err != nil {
+				log.Printf("websocket.JSON.Send '%s' error: %s", msg, err)
+			}
+		}
 		err = websocket.JSON.Send(ws, eval.Response{Status: "Resolved", Veredict: &V})
 		if err != nil {
 			log.Printf("websocket.JSON.Send 'Resolved' error: %s", err)

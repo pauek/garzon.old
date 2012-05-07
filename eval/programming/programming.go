@@ -10,6 +10,7 @@ import (
 type Evaluator struct {
 	Limits Constraints
 	Tests  []db.Obj
+	progress chan string
 }
 
 type Code struct {

@@ -142,6 +142,7 @@ func (E *Evaluator) HandleSubmissions() {
 			if err = websocket.JSON.Receive(E.ws, &resp); err != nil {
 				break
 			}
+			log.Printf("Progress: %s", resp.Status)
 			if resp.Status == "Resolved" {
 				break
 			}

@@ -1,7 +1,6 @@
 package eval
 
 import (
-	"fmt"
 	"github.com/pauek/garzon/db"
 	"time"
 )
@@ -30,7 +29,7 @@ type Veredict struct {
 }
 
 type Evaluator interface {
-	Evaluate(Problem *Problem, Solution string) Veredict
+	Evaluate(Problem *Problem, Solution string, progress chan string) Veredict
 }
 
 type DirReader interface {
@@ -44,13 +43,14 @@ type Response struct {
 
 type Eval bool
 
-func Submit(S Submission, V *Veredict) error {
+func Submit(S Submission, V *Veredict, progress chan string) {
 	ev, ok := S.Problem.Evaluator.Obj.(Evaluator)
 	if !ok {
-		return fmt.Errorf("Wrong Evaluator")
+		progress <- "Error: wrong evaluator"
+		return
 	}
-	*V = ev.Evaluate(S.Problem, S.Solution)
-	return nil
+	*V = ev.Evaluate(S.Problem, S.Solution, progress)
+	progress <- "Resolved"
 }
 
 func init() {
