@@ -1,16 +1,15 @@
-
 package programming
 
 import (
+	"bytes"
+	"fmt"
+	"github.com/pauek/garzon/db"
+	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
-	"io/ioutil"
-	"fmt"
-	"log"
-	"bytes"
-	"strings"
 	"path/filepath"
-	"github.com/pauek/garzon/db"
+	"strings"
 )
 
 // InputTester
@@ -32,9 +31,9 @@ func (I InputTester) Prepare(C *context) {
 
 func (I InputTester) SetUp(C *context, cmd *exec.Cmd) error {
 	log.Printf("Testing input '%s'\n", prefix(I.Input, 20))
-	cmd.Stdin  = strings.NewReader(I.Input)
+	cmd.Stdin = strings.NewReader(I.Input)
 	state := C.State.(*InputTesterState)
-	switch (C.Mode()) {
+	switch C.Mode() {
 	case "model":
 		cmd.Stdout = &state.modelOut
 	case "accused":
@@ -59,10 +58,9 @@ func (I InputTester) Veredict(C *context) TestResult {
 	if a == b {
 		return TestResult{Veredict: "Accepted"}
 	}
-	msg := fmt.Sprintf("'%s' (correct) vs. '%s' (wrong)", noendl(a), noendl(b))
 	return TestResult{
 		Veredict: "Wrong Answer",
-		Reason: db.Obj{&SimpleReason{msg}},
+		Reason:   db.Obj{&GoodVsBadReason{a, b}},
 	}
 }
 
@@ -79,9 +77,10 @@ func (I *InputTester) ReadFrom(path string) error {
 // output files are created by the program and have the same
 // contents as the files created by the model program
 type FilesTester struct {
+	Input       string
 	InputFiles  []FileInfo
 	OutputFiles []FileInfo
-	state *InputTesterState
+	state       *InputTesterState
 }
 
 type FileInfo struct {
@@ -97,7 +96,7 @@ type FileTesterState struct {
 func (I FilesTester) Prepare(C *context) {
 	state := new(FileTesterState)
 	n := len(I.OutputFiles)
-	state.modelOutFiles   = make([][]byte, n)
+	state.modelOutFiles = make([][]byte, n)
 	state.accusedOutFiles = make([][]byte, n)
 	C.State = state
 }
@@ -105,7 +104,8 @@ func (I FilesTester) Prepare(C *context) {
 func (I FilesTester) SetUp(C *context, cmd *exec.Cmd) error {
 	log.Printf("Testing Files '%s'\n", C.Mode())
 	state := C.State.(*FileTesterState)
-	switch (C.Mode()) {
+	cmd.Stdin = strings.NewReader(I.Input)
+	switch C.Mode() {
 	case "model":
 		cmd.Stdout = &state.modelOut
 	case "accused":
@@ -146,9 +146,9 @@ func (I FilesTester) CleanUp(C *context) (err error) {
 			}
 		}
 		switch C.Mode() {
-		case "model": 
+		case "model":
 			state.modelOutFiles[i] = b
-		case "accused": 
+		case "accused":
 			state.accusedOutFiles[i] = b
 		}
 		// erase output file
@@ -180,16 +180,34 @@ func (I FilesTester) Veredict(C *context) TestResult {
 		b := state.accusedOutFiles[i]
 		if !equalBytes(a, b) {
 			return TestResult{Veredict: "Wrong Answer" /* TODO: Add Reason! */}
-		} 
+		}
+	}
+	a, b := state.modelOut.String(), state.accusedOut.String()
+	if a != b {
+		return TestResult{
+			Veredict: "Wrong Answer",
+			Reason:   db.Obj{&GoodVsBadReason{a, b}},
+		}
 	}
 	return TestResult{Veredict: "Accepted"}
 }
 
 func (I *FilesTester) ReadFrom(path string) (err error) {
-	I.InputFiles,  err = readFiles(path, "in")
-	if err != nil { return err }
+	if fileExists(path + "/in") {
+		text, err := ioutil.ReadFile(path + "/in")
+		if err != nil {
+			return fmt.Errorf("InputTester.ReadFrom: cannot read '%s': %s\n", path, err)
+		}
+		I.Input = string(text)
+	}
+	I.InputFiles, err = readFiles(path, "in")
+	if err != nil {
+		return err
+	}
 	I.OutputFiles, err = readFiles(path, "out")
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -36,7 +36,7 @@ type DirReader interface {
 }
 
 type Response struct {
-	Status string
+	Status   string
 	Veredict *Veredict
 }
 
