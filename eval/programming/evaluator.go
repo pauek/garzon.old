@@ -147,7 +147,7 @@ func (E Evaluator) Evaluate(P *eval.Problem, Solution string, progress chan stri
 	ver := make(map[string]bool)
 	for i, dbobj := range E.Tests {
 		tester := dbobj.Obj.(Tester)
-		progress <- fmt.Sprintf("Test %d", i)
+		progress <- fmt.Sprintf("Test %d", i+1)
 		E.runTest(C, tester, &results[i])
 		ver[results[i].Veredict] = true
 	}
