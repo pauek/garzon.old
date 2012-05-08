@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"github.com/pauek/garzon/db"
 	"os/exec"
+	"strings"
 )
 
 type Evaluator struct {
-	Limits Constraints
-	Tests  []db.Obj
+	Limits   Constraints
+	Tests    []db.Obj
 	progress chan string
 }
 
@@ -68,4 +69,45 @@ type SimpleReason struct {
 
 func (sr SimpleReason) String() string {
 	return sr.Message
+}
+
+type GoodVsBadReason struct {
+	Good, Bad string
+}
+
+func sizes(lines []string) (int, int) {
+	w, h := 0, 0
+	for i, ln := range lines {
+		h = i
+		if len(ln) > w {
+			w = len(ln)
+		}
+	}
+	return w, h
+}
+
+func (r GoodVsBadReason) String() string {
+	la := strings.Split(r.Good, "\n")
+	lb := strings.Split(r.Bad, "\n")
+	aw, ah := sizes(la)
+	bw, bh := sizes(lb)
+	h := ah
+	if bh > h {
+		h = bh
+	}
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, fmt.Sprintf("\n%%-%ds     %%-%ds\n\n", aw, bw), "Good", "Bad")
+	for i := 0; i < h; i++ {
+		a := ""
+		if i < len(la) {
+			a = strings.Replace(la[i], " ", "\u2423", -1)
+		}
+		fmt.Fprintf(&buf, fmt.Sprintf("%%-%ds  |  ", aw), a)
+		b := ""
+		if i < len(lb) {
+			b = strings.Replace(lb[i], " ", "\u2423", -1)
+		}
+		fmt.Fprintf(&buf, fmt.Sprintf("%%-%ds\n", bw), b)
+	}
+	return buf.String()
 }
