@@ -6,7 +6,6 @@ import (
 	"strings"
 	"io/ioutil"
 
-	"github.com/pauek/garzon/grz-judge/client"
 )
 
 const u_submit = `grz submit <ProblemID> <filename>`

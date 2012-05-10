@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	grzclient "github.com/pauek/garzon/grz-judge/client"
 	_ "github.com/pauek/garzon/eval/programming"
 	"os"
 )
@@ -13,6 +14,7 @@ type Command struct {
 	function func(args []string)
 }
 
+var client *grzclient.Client
 var commands []*Command
 var authToken string
 
@@ -28,6 +30,7 @@ func init() {
 		// grz config??
 		&Command{"help", ``, "", help},
 	}
+	client = grzclient.NewClient("")
 }
 
 const _usage_header = "usage: grz <command> [<args>]\n\nCommands:\n"

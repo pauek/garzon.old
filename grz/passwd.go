@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	_ "github.com/pauek/garzon/grz-judge/client"
 )
 
 const u_passwd = `grz passwd`

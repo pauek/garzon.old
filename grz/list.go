@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/pauek/garzon/grz-judge/client"
 )
 
 const u_list = `grz list`
