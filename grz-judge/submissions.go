@@ -7,66 +7,66 @@ import (
 	"time"
 )
 
-var Queue Submissions
+var queue Queue
 
-type Submissions struct {
+type Queue struct {
 	Channel    chan string
 	Mutex      sync.Mutex
 	inprogress map[string]*eval.Submission
 	progress   map[string]chan string
 }
 
-func (S *Submissions) Init() {
-	S.inprogress = make(map[string]*eval.Submission)
-	S.progress = make(map[string]chan string, 1)
-	S.Channel = make(chan string, MaxQueueSize)
+func (Q *Queue) Init() {
+	Q.inprogress = make(map[string]*eval.Submission)
+	Q.progress = make(map[string]chan string, 1)
+	Q.Channel = make(chan string, MaxQueueSize)
 }
 
-func (S *Submissions) Close() {
-	close(S.Channel)
+func (Q *Queue) Close() {
+	close(Q.Channel)
 }
 
-func (S *Submissions) Pending() int {
-	return len(S.inprogress)
+func (Q *Queue) Pending() int {
+	return len(Q.inprogress)
 }
 
-func (S *Submissions) Add(user string, pid string, problem *eval.Problem, sol string) (ID string) {
+func (Q *Queue) Add(user string, pid string, problem *eval.Problem, sol string) (ID string) {
 	ID = db.NewUUID()
-	S.Mutex.Lock()
-	S.inprogress[ID] = &eval.Submission{
+	Q.Mutex.Lock()
+	Q.inprogress[ID] = &eval.Submission{
 		User:      user,
 		ProblemID: pid,
 		Problem:   problem,
 		Solution:  sol,
 		Submitted: time.Now(),
 	}
-	S.progress[ID] = make(chan string, 1)
-	S.progress[ID] <- "In queue"
-	S.Mutex.Unlock()
-	S.Channel <- ID
+	Q.progress[ID] = make(chan string, 1)
+	Q.progress[ID] <- "In queue"
+	Q.Mutex.Unlock()
+	Q.Channel <- ID
 	return
 }
 
-func (S *Submissions) Get(id string) (sub *eval.Submission) {
-	sub, ok := S.inprogress[id]
+func (Q *Queue) Get(id string) (sub *eval.Submission) {
+	sub, ok := Q.inprogress[id]
 	if !ok {
 		sub = nil
 	}
 	return
 }
 
-func (S *Submissions) SetStatus(id, state string) {
-	S.Mutex.Lock()
-	S.progress[id] <- state
-	S.Mutex.Unlock()
+func (Q *Queue) SetStatus(id, state string) {
+	Q.Mutex.Lock()
+	Q.progress[id] <- state
+	Q.Mutex.Unlock()
 }
 
-func (S *Submissions) GetStatus(id string) string {
-	return <- S.progress[id]
+func (Q *Queue) GetStatus(id string) string {
+	return <- Q.progress[id]
 }
 
-func (S *Submissions) Delete(id string) {
-	S.Mutex.Lock()
-	delete(S.inprogress, id)
-	S.Mutex.Unlock()
+func (Q *Queue) Delete(id string) {
+	Q.Mutex.Lock()
+	delete(Q.inprogress, id)
+	Q.Mutex.Unlock()
 }

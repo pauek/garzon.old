@@ -127,7 +127,7 @@ func Logout(login string) (err error) {
 	return nil
 }
 
-func Submit(probid, filename string) (id string, err error) {
+func Submit(probid, filename string, data []byte) (id string, err error) {
 	var buff bytes.Buffer
 	w := multipart.NewWriter(&buff)
 	w.WriteField("id", probid)
@@ -135,11 +135,7 @@ func Submit(probid, filename string) (id string, err error) {
 	if err != nil {
 		return "", fmt.Errorf("Cannot create form file: %s", err)
 	}
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return "", fmt.Errorf("Cannot read file '%s'", filename)
-	}
-	part.Write(data)
+	part.Write([]byte(data))
 	w.Close()
 
 	mime := fmt.Sprintf("multipart/form-data; boundary=%s", w.Boundary())

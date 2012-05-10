@@ -20,23 +20,25 @@ const (
 var (
 	Server string
 	Mode   = make(map[string]bool)
-	Modes  = []string{"copy", "debug", "local", "open", "files"}
+	Modes  = []string{"copy", "debug", "local", "open", "nolog", "files"}
 
-	Problems *db.Database
-	Users    *db.Database
+	Problems    *db.Database
+	Users       *db.Database
+	Submissions *db.Database
 )
 
 const usage = `usage: grz-judge [options...] [accounts...]
 
 Options:
-   --copy,    Copy 'grz-{eval,jail}' to remote accounts
-   --debug,   Tell 'grz-eval' to keep evaluation directories
-   --local,   Local mode (only listen to localhost:50000)
-   --open,    Open mode (no authentication, submissions not stored)
-   --files,   Doesn't touch DB, reads problems from disk (implies --open)
+   --copy,    Copy 'grz-{eval,jail}' to remote accounts.
+   --debug,   Tell 'grz-eval' to keep evaluation directories.
+   --local,   Local mode (only listen to localhost:50000).
+   --open,    Open mode (no authentication, submissions not stored).
+   --nolog,   Do not store submissions in the database.
+   --files,   Read problems from disk (implies --open and --nolog).
 
 Environment:
-	GRZ_PATH   List of colon-separated directories with problems (for --files)
+   GRZ_PATH   List of colon-separated directories with problems (for --files)
 					
 `
 
@@ -113,7 +115,7 @@ func submit(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "ERROR: Wrong method")
 		return
 	}
-	if Queue.Pending() > MaxQueueSize {
+	if queue.Pending() > MaxQueueSize {
 		fmt.Fprint(w, "ERROR: Server too busy")
 		return
 	}
@@ -134,7 +136,7 @@ func submit(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	user := req.Header.Get("user")
-	ID := Queue.Add(user, id, problem, string(solution))
+	ID := queue.Add(user, id, problem, string(solution))
 	fmt.Fprintf(w, "%s", ID)
 	return
 }
@@ -142,7 +144,7 @@ func submit(w http.ResponseWriter, req *http.Request) {
 func wsStatus(id string) websocket.Handler {
 	return func(ws *websocket.Conn) {
 		for {
-			msg := Queue.GetStatus(id)
+			msg := queue.GetStatus(id)
 			err := websocket.Message.Send(ws, []byte(msg))
 			if err != nil {
 				break
@@ -151,13 +153,13 @@ func wsStatus(id string) websocket.Handler {
 				break
 			}
 		}
-		
+
 	}
 }
 
 func status(w http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[len("/status/"):]
-	sub := Queue.Get(id)
+	sub := queue.Get(id)
 	if sub != nil {
 		websocket.Handler(wsStatus(id)).ServeHTTP(w, req)
 		return
@@ -168,7 +170,7 @@ func status(w http.ResponseWriter, req *http.Request) {
 
 func veredict(w http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path[len("/veredict/"):]
-	sub := Queue.Get(id)
+	sub := queue.Get(id)
 	if sub == nil {
 		fmt.Fprint(w, "Not found\n")
 		return
@@ -178,7 +180,40 @@ func veredict(w http.ResponseWriter, req *http.Request) {
 	if V.Message != "Accepted" && V.Details.Obj != nil {
 		fmt.Fprintf(w, "\n%v", V.Details.Obj)
 	}
-	Queue.Delete(id)
+	queue.Delete(id)
+}
+
+func handleAndShowFlags(flags map[string]*bool) {
+	for name, active := range flags {
+		if *active {
+			Mode[name] = true
+			log.Printf("Mode '--%s'", name)
+		}
+	}
+
+	if Mode["files"] {
+		if !Mode["open"] {
+			Mode["open"] = true // --files => --open
+		}
+		if !Mode["nolog"] {
+			Mode["nolog"] = true // --files => --nolog
+		}
+	}
+	if !Mode["files"] {
+		Problems = getDB("problems")
+	}
+	if !Mode["open"] {
+		Users = getDB("users")
+	}
+	if !Mode["nolog"] {
+		Submissions = getDB("submissions")
+	}
+	if Mode["local"] {
+		Server = "localhost"
+	}
+	for name, _ := range Mode {
+		log.Printf("Mode '--%s'", name)
+	}
 }
 
 func main() {
@@ -196,30 +231,9 @@ func main() {
 		accounts = []string{"local"}
 	}
 
-	for name, active := range flags {
-		if *active {
-			Mode[name] = true
-			log.Printf("Mode '--%s'", name)
-		}
-	}
+	handleAndShowFlags(flags)
 
-	if Mode["files"] {
-		if !Mode["open"] {
-			Mode["open"] = true // --files => --open
-			log.Printf("Mode '--open'")
-		}
-	}
-	if !Mode["files"] {
-		Problems = getDB("problems")
-		if !Mode["open"] {
-			Users = getDB("users")
-		}
-	}
-	if Mode["local"] {
-		Server = "localhost"
-	}
-
-	Queue.Init()
+	queue.Init()
 	launchEvaluators(accounts)
 	http.HandleFunc("/open", open)
 	http.HandleFunc("/login", login)
@@ -235,6 +249,6 @@ func main() {
 		log.Printf("ListenAndServe: %s\n", err)
 	}
 
-	Queue.Close()
+	queue.Close()
 	waitForEvaluators()
 }
