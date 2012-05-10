@@ -10,7 +10,9 @@ func login(args []string) {
 	login := checkOneArg("login", args)
 
 	if isOpen() {
-		fmt.Println("No need to login.")
+		client.Username = login
+		client.SaveAuthToken()
+		fmt.Println("Ok.")
 		return
 	}
 
