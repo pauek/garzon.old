@@ -14,33 +14,47 @@ import (
 	"code.google.com/p/go.net/websocket"
 )
 
-var JudgeUrl string
-var AuthToken string
+type Client struct {
+	JudgeUrl string
+	AuthToken string
+	Username string
+	httpclient http.Client
+}
 
-var client http.Client
+var DefaultClient Client
 
-type Jar struct{}
+type Jar struct{
+	client *Client
+}
 
 func (J Jar) SetCookies(U *url.URL, cookies []*http.Cookie) {
 	// TODO: Check url is judge?
 	for _, c := range cookies {
 		if c.Name == "Auth" {
-			AuthToken = c.Value
+			J.client.AuthToken = c.Value
 			break
 		}
 	}
 }
 
 func (J Jar) Cookies(U *url.URL) []*http.Cookie {
-	return []*http.Cookie{&http.Cookie{Name: "Auth", Value: AuthToken}}
+	return []*http.Cookie{&http.Cookie{
+		Name: "Auth", 
+		Value: J.client.AuthToken,
+	}}
 }
 
-func init() {
-	JudgeUrl = os.Getenv("GRZ_JUDGE")
-	if JudgeUrl == "" {
-		JudgeUrl = "http://localhost:50000"
-	}
-	client.Jar = Jar{}
+func NewClient(url string) *Client {
+	c := &Client{}
+	if url == "" {
+		url = os.Getenv("GRZ_JUDGE")
+		if url == "" {
+			url = "http://localhost:50000"
+		}
+	} 
+	c.JudgeUrl = url
+	c.httpclient = http.Client{Jar: Jar{client: c}}
+	return c
 }
 
 func firstLine(R io.Reader) (id string, err error) {
@@ -52,9 +66,9 @@ func firstLine(R io.Reader) (id string, err error) {
 	return string(line), nil
 }
 
-func Open() (isOpen bool, err error) {
-	Url := fmt.Sprintf("%s/open", JudgeUrl)
-	resp, err := client.Get(Url)
+func (C *Client) Open() (isOpen bool, err error) {
+	Url := fmt.Sprintf("%s/open", C.JudgeUrl)
+	resp, err := C.httpclient.Get(Url)
 	if err != nil {
 		return false, fmt.Errorf("Cannot GET '%s': %s", Url, err)
 	}
@@ -66,9 +80,9 @@ func Open() (isOpen bool, err error) {
 	return line == "yes", nil
 }
 
-func ProblemList() (ids []string, err error) {
-	Url := fmt.Sprintf("%s/list", JudgeUrl)
-	resp, err := client.Get(Url)
+func (C *Client) ProblemList() (ids []string, err error) {
+	Url := fmt.Sprintf("%s/list", C.JudgeUrl)
+	resp, err := C.httpclient.Get(Url)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot GET '%s': %s", Url, err)
 	}
@@ -84,12 +98,12 @@ func ProblemList() (ids []string, err error) {
 	return ids, nil
 }
 
-func Login(login, passwd string) (err error) {
-	Url := fmt.Sprintf("%s/login", JudgeUrl)
+func (C *Client) Login(login, passwd string) (err error) {
+	Url := fmt.Sprintf("%s/login", C.JudgeUrl)
 	if login == "" {
 		return fmt.Errorf("User empty")
 	}
-	resp, err := client.PostForm(Url, url.Values{
+	resp, err := C.httpclient.PostForm(Url, url.Values{
 		"login":  {login},
 		"passwd": {passwd},
 	})
@@ -100,23 +114,23 @@ func Login(login, passwd string) (err error) {
 		return fmt.Errorf("Error: %s", resp.Status)
 	}
 	resp.Body.Close()
-	if AuthToken == "" {
+	if C.AuthToken == "" {
 		return fmt.Errorf("Didn't receive a cookie")
 	}
 	return nil
 }
 
-func Logout(login string) (err error) {
+func (C *Client) Logout(login string) (err error) {
 	if login == "" {
 		return fmt.Errorf("User empty")
 	}
-	Url := fmt.Sprintf("%s/logout", JudgeUrl)
+	Url := fmt.Sprintf("%s/logout", C.JudgeUrl)
 	req, err := http.NewRequest("POST", Url, nil)
-	if AuthToken != "" {
-		req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
+	if C.AuthToken != "" {
+		req.AddCookie(&http.Cookie{Name: "Auth", Value: C.AuthToken})
 	}
 
-	resp, err := client.Do(req)
+	resp, err := C.httpclient.Do(req)
 	if err != nil {
 		return fmt.Errorf("Cannot POST to '%s': %s", Url, err)
 	}
@@ -127,9 +141,10 @@ func Logout(login string) (err error) {
 	return nil
 }
 
-func Submit(probid, filename string, data []byte) (id string, err error) {
+func (C *Client) Submit(probid, filename string, data []byte) (id string, err error) {
 	var buff bytes.Buffer
 	w := multipart.NewWriter(&buff)
+	w.WriteField("username", C.Username)
 	w.WriteField("id", probid)
 	part, err := w.CreateFormFile("solution", filename)
 	if err != nil {
@@ -139,20 +154,20 @@ func Submit(probid, filename string, data []byte) (id string, err error) {
 	w.Close()
 
 	mime := fmt.Sprintf("multipart/form-data; boundary=%s", w.Boundary())
-	Url, err := url.Parse(JudgeUrl + "/submit")
+	Url, err := url.Parse(C.JudgeUrl + "/submit")
 	if err != nil {
-		return "", fmt.Errorf("Cannot parse url '%s': %s", JudgeUrl+"/submit", err)
+		return "", fmt.Errorf("Cannot parse url '%s': %s", C.JudgeUrl+"/submit", err)
 	}
 	req, err := http.NewRequest("POST", Url.String(), &buff)
 	if err != nil {
 		return "", fmt.Errorf("Cannot create request: %s", err)
 	}
 	req.Header.Set("Content-Type", mime)
-	if AuthToken != "" {
-		req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
+	if C.AuthToken != "" {
+		req.AddCookie(&http.Cookie{Name: "Auth", Value: C.AuthToken})
 	}
 
-	resp, err := client.Do(req)
+	resp, err := C.httpclient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("Cannot POST: %s", err)
 	}
@@ -163,9 +178,9 @@ func Submit(probid, filename string, data []byte) (id string, err error) {
 	return firstLine(resp.Body)
 }
 
-func Status(subid string, callback func(status string)) (err error) {
-	orig := JudgeUrl
-	url := fmt.Sprintf("%s/status/%s", JudgeUrl, subid)
+func (C *Client) Status(subid string, callback func(status string)) (err error) {
+	orig := C.JudgeUrl
+	url := fmt.Sprintf("%s/status/%s", C.JudgeUrl, subid)
 	url = strings.Replace(url, "http://", "ws://", 1)
 
 	ws, err := websocket.Dial(url, "", orig)
@@ -185,14 +200,14 @@ func Status(subid string, callback func(status string)) (err error) {
 	return nil
 }
 
-func Veredict(subid string) (veredict string, err error) {
-	Url := fmt.Sprintf("%s/veredict/%s", JudgeUrl, subid)
+func (C *Client) Veredict(subid string) (veredict string, err error) {
+	Url := fmt.Sprintf("%s/veredict/%s", C.JudgeUrl, subid)
 	req, err := http.NewRequest("GET", Url, nil)
-	if AuthToken != "" {
-		req.AddCookie(&http.Cookie{Name: "Auth", Value: AuthToken})
+	if C.AuthToken != "" {
+		req.AddCookie(&http.Cookie{Name: "Auth", Value: C.AuthToken})
 	}
 
-	resp, err := client.Do(req)
+	resp, err := C.httpclient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("Cannot GET: %s", err)
 	}
