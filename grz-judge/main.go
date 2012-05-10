@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/pauek/garzon/db"
+	"github.com/pauek/garzon/eval"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -120,6 +121,7 @@ func submit(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	id := req.FormValue("id")
+	username := req.FormValue("username")
 	problem, err := getProblem(id)
 	if err != nil {
 		fmt.Fprintf(w, "ERROR: %s\n", err)
@@ -136,7 +138,10 @@ func submit(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	user := req.Header.Get("user")
-	ID := queue.Add(user, id, problem, string(solution))
+	if user != username {
+		log.Printf("Warning: different 'user' and 'username' ('%s' vs '%s')", user, username)
+	}
+	ID := queue.Add(username, id, problem, string(solution))
 	fmt.Fprintf(w, "%s", ID)
 	return
 }
@@ -231,6 +236,7 @@ func main() {
 		accounts = []string{"local"}
 	}
 
+	log.Printf("GRZ_PATH is '%s'", eval.GrzPath)
 	handleAndShowFlags(flags)
 
 	queue.Init()
