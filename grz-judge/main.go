@@ -192,7 +192,6 @@ func handleAndShowFlags(flags map[string]*bool) {
 	for name, active := range flags {
 		if *active {
 			Mode[name] = true
-			log.Printf("Mode '--%s'", name)
 		}
 	}
 
