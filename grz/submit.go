@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"io/ioutil"
 
 	"github.com/pauek/garzon/grz-judge/client"
 )
@@ -20,11 +21,15 @@ func submit(args []string) {
 		client.JudgeUrl = url
 	}
 
-	probid, filename := checkTwoArgs("submit", fset.Args())
-
 	maybeReadAuthToken()
 
-	resp, err := client.Submit(probid, filename)
+	probid, filename := checkTwoArgs("submit", fset.Args())
+
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		_errx("Cannot read file '%s'", filename)
+	}
+	resp, err := client.Submit(probid, filename, data)
 	if err != nil {
 		_errx("Submission error: %s", err)
 	}
