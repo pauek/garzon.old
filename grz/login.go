@@ -27,6 +27,6 @@ func login(args []string) {
 	if err = client.Login(login, passwd); err != nil {
 		_errx("Cannot login: %s", err)
 	}
-	saveAuthToken()
+	client.SaveAuthToken()
 	fmt.Println("Ok.")
 }

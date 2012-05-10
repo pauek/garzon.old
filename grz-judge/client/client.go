@@ -3,6 +3,7 @@ package client
 import (
 	"bufio"
 	"bytes"
+	"code.google.com/p/go.net/websocket"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,20 +11,20 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings" 
-	"code.google.com/p/go.net/websocket"
+	"path/filepath"
+	"strings"
 )
 
 type Client struct {
-	JudgeUrl string
-	AuthToken string
-	Username string
+	JudgeUrl   string
+	AuthToken  string
+	Username   string
 	httpclient http.Client
 }
 
 var DefaultClient Client
 
-type Jar struct{
+type Jar struct {
 	client *Client
 }
 
@@ -39,7 +40,7 @@ func (J Jar) SetCookies(U *url.URL, cookies []*http.Cookie) {
 
 func (J Jar) Cookies(U *url.URL) []*http.Cookie {
 	return []*http.Cookie{&http.Cookie{
-		Name: "Auth", 
+		Name:  "Auth",
 		Value: J.client.AuthToken,
 	}}
 }
@@ -51,7 +52,7 @@ func NewClient(url string) *Client {
 		if url == "" {
 			url = "http://localhost:50000"
 		}
-	} 
+	}
 	c.JudgeUrl = url
 	c.httpclient = http.Client{Jar: Jar{client: c}}
 	return c
@@ -193,7 +194,7 @@ func (C *Client) Status(subid string, callback func(status string)) (err error) 
 			return fmt.Errorf("Message error: %s", err)
 		}
 		callback(msg)
-		if (msg == "Resolved") {
+		if msg == "Resolved" {
 			break
 		}
 	}
@@ -217,4 +218,77 @@ func (C *Client) Veredict(subid string) (veredict string, err error) {
 		return "", fmt.Errorf("Cannot read response body: %s", err)
 	}
 	return string(body), nil
+}
+
+// Auth
+
+func maybeCreateDir(dir string) error {
+	info, err := os.Stat(dir)
+	if err == nil {
+		if !info.IsDir() {
+			return fmt.Errorf("'%s' exists and is not a directory", dir)
+		}
+	} else {
+		err := os.Mkdir(dir, 0700)
+		if err != nil {
+			return fmt.Errorf("Cannot create directory '%s'", dir)
+		}
+	}
+	return nil
+}
+
+func configFile(name string, createParents bool) string {
+	configDir := filepath.Join(os.Getenv("HOME"), ".config")
+	if createParents {
+		maybeCreateDir(configDir)
+	}
+	garzonDir := filepath.Join(configDir, "garzon")
+	if createParents {
+		maybeCreateDir(garzonDir)
+	}
+	return filepath.Join(garzonDir, "auth")
+}
+
+func (C *Client) SaveAuthToken() error {
+	tok := C.AuthToken
+	filename := configFile("auth", true)
+	err := ioutil.WriteFile(filename, []byte(tok), 0600)
+	if err != nil {
+		return fmt.Errorf("Cannot write auth token to '%s': %s", err)
+	}
+	return nil
+}
+
+func (C *Client) MaybeReadAuthToken() error {
+	open, err := C.Open()
+	if err != nil {
+		return fmt.Errorf("Cannot determine is judge is open: %s", err)
+	}
+	if open {
+		return nil
+	}
+	filename := configFile("auth", false)
+	_, err = os.Stat(filename)
+	if err != nil {
+		if os.IsNotExist(err.(*os.PathError).Err) {
+			return fmt.Errorf("You should login first")
+		} else {
+			return fmt.Errorf("grz-judge/client.MaybeReadAuthToken: %s", err)
+		}
+	}
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("MaybeReadAuthToken: Cannot read '%s': %s", filename, err)
+	}
+	C.AuthToken = string(data)
+	return nil
+}
+
+func (C *Client) RemoveAuthToken() error {
+	filename := configFile("auth", false)
+	err := os.Remove(filename)
+	if err != nil {
+		return fmt.Errorf("Cannot remove '%s': %s", filename, err)
+	}
+	return nil
 }

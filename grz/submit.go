@@ -20,7 +20,9 @@ func submit(args []string) {
 		client.JudgeUrl = url
 	}
 
-	maybeReadAuthToken()
+	if err := client.MaybeReadAuthToken(); err != nil {
+		_errx("%s", err)
+	}
 
 	probid, filename := checkTwoArgs("submit", fset.Args())
 

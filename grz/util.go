@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 )
 
 func _err(format string, args ...interface{}) {
@@ -37,42 +35,6 @@ func checkZeroArgs(cmd string, iargs []string) {
 	_ = checkNArgs(0, cmd, iargs)
 }
 
-func maybeCreateDir(dir string) error {
-	info, err := os.Stat(dir)
-	if err == nil {
-		if !info.IsDir() {
-			return fmt.Errorf("'%s' exists and is not a directory", dir)
-		}
-	} else {
-		err := os.Mkdir(dir, 0700)
-		if err != nil {
-			return fmt.Errorf("Cannot create directory '%s'", dir)
-		}
-	}
-	return nil
-}
-
-func configFile(name string, createParents bool) string {
-	configDir := filepath.Join(os.Getenv("HOME"), ".config")
-	if createParents {
-		maybeCreateDir(configDir)
-	}
-	garzonDir := filepath.Join(configDir, "garzon")
-	if createParents {
-		maybeCreateDir(garzonDir)
-	}
-	return filepath.Join(garzonDir, "auth")
-}
-
-func saveAuthToken() error {
-	tok := client.AuthToken
-	filename := configFile("auth", true)
-	err := ioutil.WriteFile(filename, []byte(tok), 0600)
-	if err != nil {
-		_errx("Cannot write auth token to '%s': %s", err)
-	}
-	return nil
-}
 
 func isOpen() bool {
 	open, err := client.Open()
@@ -80,33 +42,4 @@ func isOpen() bool {
 		_errx("Cannot determine if Judge is open")
 	}
 	return open
-}
-
-func maybeReadAuthToken() {
-	if isOpen() {
-		return
-	}
-	filename := configFile("auth", false)
-	_, err := os.Stat(filename)
-	if err != nil {
-		if os.IsNotExist(err.(*os.PathError).Err) {
-			_errx("You should login first")
-		} else {
-			_errx("error: %s", err)
-		}
-	}
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		_errx("Cannot read '%s': %s", filename, err)
-	}
-	client.AuthToken = string(data)
-}
-
-func removeAuthToken() error {
-	filename := configFile("auth", false)
-	err := os.Remove(filename)
-	if err != nil {
-		return fmt.Errorf("Cannot remove '%s': %s", filename, err)
-	}
-	return nil
 }
