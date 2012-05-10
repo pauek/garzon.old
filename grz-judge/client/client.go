@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"code.google.com/p/go.net/websocket"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -118,6 +119,7 @@ func (C *Client) Login(login, passwd string) (err error) {
 	if C.AuthToken == "" {
 		return fmt.Errorf("Didn't receive a cookie")
 	}
+	C.Username = login
 	return nil
 }
 
@@ -246,49 +248,78 @@ func configFile(name string, createParents bool) string {
 	if createParents {
 		maybeCreateDir(garzonDir)
 	}
-	return filepath.Join(garzonDir, "auth")
+	return filepath.Join(garzonDir, name)
 }
 
-func (C *Client) SaveAuthToken() error {
-	tok := C.AuthToken
-	filename := configFile("auth", true)
-	err := ioutil.WriteFile(filename, []byte(tok), 0600)
+func saveConfigFile(filename string, data []byte) error {
+	abspath := configFile(filename, true)
+	err := ioutil.WriteFile(abspath, []byte(data), 0600)
 	if err != nil {
 		return fmt.Errorf("Cannot write auth token to '%s': %s", err)
 	}
 	return nil
 }
 
+var notexist = errors.New("config File does not exist")
+
+func readConfigFile(filename string) (data []byte, err error) {
+	abspath := configFile(filename, false)
+	_, err = os.Stat(abspath)
+	if err != nil {
+		if os.IsNotExist(err.(*os.PathError).Err) {
+			return nil, notexist
+		} else {
+			return nil, fmt.Errorf("readConfigFile: %s", err)
+		}
+	}
+	data, err = ioutil.ReadFile(abspath)
+	if err != nil {
+		return nil, fmt.Errorf("readConfigFile: Cannot read '%s': %s", filename, err)
+	}
+	return data, nil
+}
+
+func (C *Client) SaveAuthToken() error {
+	if err := saveConfigFile("auth", []byte(C.AuthToken)); err != nil {
+		return err
+	}
+	if err := saveConfigFile("username", []byte(C.Username)); err != nil {
+		return err
+	}
+	return nil
+}
+
+var NoAuthToken = errors.New("There is no AuthToken")
+
 func (C *Client) MaybeReadAuthToken() error {
 	open, err := C.Open()
 	if err != nil {
 		return fmt.Errorf("Cannot determine is judge is open: %s", err)
 	}
+	if user, err := readConfigFile("username"); err == nil {
+		C.Username = string(user)
+	}
 	if open {
 		return nil
 	}
-	filename := configFile("auth", false)
-	_, err = os.Stat(filename)
-	if err != nil {
-		if os.IsNotExist(err.(*os.PathError).Err) {
-			return fmt.Errorf("You should login first")
-		} else {
-			return fmt.Errorf("grz-judge/client.MaybeReadAuthToken: %s", err)
-		}
+	data, err := readConfigFile("auth")
+	if err == notexist {
+		return NoAuthToken
 	}
-	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("MaybeReadAuthToken: Cannot read '%s': %s", filename, err)
+		return fmt.Errorf("MaybeReadAuthToken error: %s", err)
 	}
 	C.AuthToken = string(data)
 	return nil
 }
 
 func (C *Client) RemoveAuthToken() error {
-	filename := configFile("auth", false)
-	err := os.Remove(filename)
-	if err != nil {
-		return fmt.Errorf("Cannot remove '%s': %s", filename, err)
+	for _, name := range []string{"auth", "username"} {
+		abspath := configFile(name, false)
+		err := os.Remove(abspath)
+		if err != nil {
+			return fmt.Errorf("Cannot remove '%s': %s", name, err)
+		}
 	}
 	return nil
 }
