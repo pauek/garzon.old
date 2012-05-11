@@ -58,6 +58,8 @@ func (I InputTester) Veredict(C *context) TestResult {
 	if a == b {
 		return TestResult{Veredict: "Accepted"}
 	}
+	a = strings.Replace(a, " ", "\u2423", -1)
+	b = strings.Replace(b, " ", "\u2423", -1)
 	return TestResult{
 		Veredict: "Wrong Answer",
 		Reason:   db.Obj{&GoodVsBadReason{a, b}},
@@ -184,6 +186,8 @@ func (I FilesTester) Veredict(C *context) TestResult {
 	}
 	a, b := state.modelOut.String(), state.accusedOut.String()
 	if a != b {
+		a = strings.Replace(a, " ", "\u2423", -1)
+		b = strings.Replace(b, " ", "\u2423", -1)
 		return TestResult{
 			Veredict: "Wrong Answer",
 			Reason:   db.Obj{&GoodVsBadReason{a, b}},

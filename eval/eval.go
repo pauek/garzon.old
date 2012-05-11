@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"fmt"
 	"github.com/pauek/garzon/db"
 	"time"
 )
@@ -13,6 +14,11 @@ type Submission struct {
 	Submitted time.Time
 	Resolved  time.Time
 	Veredict  Veredict
+}
+
+func (S *Submission) Hora() string {
+	t := S.Submitted
+	return fmt.Sprintf("%d/%d/%d a les %d:%d", t.Day(), t.Month(), t.Year(), t.Hour(), t.Minute())
 }
 
 type Problem struct {

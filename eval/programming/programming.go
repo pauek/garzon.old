@@ -50,6 +50,11 @@ type TestResult struct {
 	Reason   db.Obj
 }
 
+func (T *TestResult) GoodVsBad() (ok bool) {
+	_, ok = T.Reason.Obj.(*GoodVsBadReason)
+	return
+}
+
 func (tr TestResult) String() string {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "%s", tr.Veredict)
@@ -100,12 +105,12 @@ func (r GoodVsBadReason) String() string {
 	for i := 0; i < h; i++ {
 		a := ""
 		if i < len(la) {
-			a = strings.Replace(la[i], " ", "\u2423", -1)
+			a = la[i]
 		}
 		fmt.Fprintf(&buf, fmt.Sprintf("%%-%ds  |  ", aw), a)
 		b := ""
 		if i < len(lb) {
-			b = strings.Replace(lb[i], " ", "\u2423", -1)
+			b = lb[i]
 		}
 		fmt.Fprintf(&buf, fmt.Sprintf("%%-%ds\n", bw), b)
 	}
