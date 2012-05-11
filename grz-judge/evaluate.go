@@ -127,7 +127,7 @@ func (E *Evaluator) HandleSubmissions() {
 		if !ok {
 			break
 		}
-		queue.SetStatus(id, "In Process")
+		queue.SendStatus(id, "In Process")
 		sub := queue.Get(id)
 		log.Printf("Submitting '%s'", sub.Problem.Title)
 		if err := websocket.JSON.Send(E.ws, sub); err != nil {
@@ -145,7 +145,7 @@ func (E *Evaluator) HandleSubmissions() {
 			if resp.Status == "Resolved" {
 				break
 			}
-			queue.SetStatus(id, resp.Status)
+			queue.SendStatus(id, resp.Status)
 		}
 		if err != nil {
 			log.Printf("Error: %s %+v", err, resp)
@@ -153,25 +153,16 @@ func (E *Evaluator) HandleSubmissions() {
 			E.stderr.Reset() // FIXME: se corta o algo
 			continue
 		}
-		queue.SetStatus(id, "Resolved")
 		sub.Resolved = time.Now()
 		sub.Veredict = *resp.Veredict
 		sub.Problem = nil
-		E.storeSubmission(id)
+		queue.store(id)
+		queue.SendStatus(id, "Resolved")
 		fmt.Printf("\nREMOTE:\n%s\nLOCAL:\n", E.stderr.String())
 		E.stderr.Reset() // FIXME: se corta o algo
 	}
 }
 
-func (E *Evaluator) storeSubmission(id string) {
-	sub := queue.Get(id)
-	if !Mode["nolog"] {
-		err := Submissions.Put(id, sub)
-		if err != nil {
-			log.Printf("Error: cannot store submission '%s': %s", id, err)
-		}
-	}
-}
 
 func (E *Evaluator) CleanUp() {
 	E.ws.Close()

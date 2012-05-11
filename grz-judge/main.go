@@ -149,7 +149,7 @@ func submit(w http.ResponseWriter, req *http.Request) {
 func wsStatus(id string) websocket.Handler {
 	return func(ws *websocket.Conn) {
 		for {
-			msg := queue.GetStatus(id)
+			msg := queue.ReceiveStatus(id)
 			err := websocket.Message.Send(ws, []byte(msg))
 			if err != nil {
 				break
