@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/pauek/garzon/db"
 	"github.com/pauek/garzon/eval"
+	"log"
 	"sync"
 	"time"
 )
@@ -43,8 +44,19 @@ func (Q *Queue) Add(user string, pid string, problem *eval.Problem, sol string) 
 	Q.progress[ID] = make(chan string, 1)
 	Q.progress[ID] <- "In queue"
 	Q.Mutex.Unlock()
+	Q.store(ID)
 	Q.Channel <- ID
 	return
+}
+
+func (Q *Queue) store(id string) {
+	if !Mode["nolog"] {
+		sub := Q.Get(id)
+		err := Submissions.PutOrUpdate(id, sub)
+		if err != nil {
+			log.Printf("Error: cannot store submission '%s': %s", id, err)
+		}
+	}
 }
 
 func (Q *Queue) Get(id string) (sub *eval.Submission) {
@@ -55,14 +67,14 @@ func (Q *Queue) Get(id string) (sub *eval.Submission) {
 	return
 }
 
-func (Q *Queue) SetStatus(id, state string) {
+func (Q *Queue) SendStatus(id, state string) {
 	Q.Mutex.Lock()
 	Q.progress[id] <- state
 	Q.Mutex.Unlock()
 }
 
-func (Q *Queue) GetStatus(id string) string {
-	return <- Q.progress[id]
+func (Q *Queue) ReceiveStatus(id string) string {
+	return <-Q.progress[id]
 }
 
 func (Q *Queue) Delete(id string) {
