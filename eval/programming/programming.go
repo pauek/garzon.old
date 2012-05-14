@@ -29,7 +29,7 @@ type Tester interface {
 	Veredict(*context) TestResult
 }
 
-type Readable interface {
+type Reader interface {
 	ReadFrom(path string) error
 }
 

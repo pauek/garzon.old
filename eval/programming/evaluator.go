@@ -73,7 +73,7 @@ func (C *context) WriteAndCompile(whom string) error {
 	log.Printf("Compiling '%s' ('%s')", codefile, prefix(C.code[whom], 30))
 	if err := L.Functions.Compile(codefile, exefile); err != nil {
 		os.RemoveAll(C.dir)
-		return fmt.Errorf("Error compiling '%s': %v", whom, err)
+		return err
 	}
 	return nil
 }
@@ -143,7 +143,14 @@ func (E Evaluator) Evaluate(P *eval.Problem, Solution string, progress chan<- st
 	}
 	C, err := E.prepareContext(P, Code{Text: Solution, Lang: "c++"})
 	if err != nil {
-		return eval.Veredict{Message: fmt.Sprintf("%s\n", err)}
+		if comperr, ok := err.(*lang.CompilationError); ok {
+			return eval.Veredict{
+				Message: "Compilation Error",
+				Details: db.Obj{comperr.Output},
+			}
+		} else {
+			return eval.Veredict{Message: err.Error()}
+		}
 	}
 	results := make([]TestResult, len(E.Tests))
 	ver := make(map[string]bool)
@@ -180,7 +187,12 @@ func (E Evaluator) prepareContext(P *eval.Problem, accused Code) (C *context, er
 		return nil, err
 	}
 	if err := C.WriteAndCompile("model"); err != nil {
-		return nil, err
+		switch err.(type) {
+		case *lang.CompilationError:
+			return nil, fmt.Errorf("Model doesn't compile!")
+		default:
+			return nil, err
+		}
 	}
 	if err := C.WriteAndCompile("accused"); err != nil {
 		return nil, err
@@ -282,7 +294,7 @@ func (E *Evaluator) ReadDir(dir string, prob *eval.Problem) error {
 	for _, m := range matches {
 		typ := getType(m)
 		obj := db.ObjFromType("prog.test." + typ)
-		tester, ok := obj.(Readable)
+		tester, ok := obj.(Reader)
 		if !ok {
 			return fmt.Errorf("Type '%s' is not a programming.Tester", typ)
 		}

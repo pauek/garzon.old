@@ -15,6 +15,10 @@ func init() {
 	GrzPath = os.Getenv("GRZ_PATH")
 }
 
+type DirReader interface {
+	ReadDir(dir string, Problem *Problem) error
+}
+
 func RootList() []string {
 	return filepath.SplitList(GrzPath)
 }

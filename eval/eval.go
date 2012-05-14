@@ -34,11 +34,7 @@ type Veredict struct {
 }
 
 type Evaluator interface {
-	Evaluate(Problem *Problem, Solution string, progress chan string) Veredict
-}
-
-type DirReader interface {
-	ReadDir(dir string, Problem *Problem) error
+	Evaluate(Problem *Problem, Solution string, progress chan<- string) Veredict
 }
 
 type Response struct {
@@ -48,7 +44,7 @@ type Response struct {
 
 type Eval bool
 
-func Submit(S Submission, V *Veredict, progress chan string) {
+func Submit(S Submission, V *Veredict, progress chan<- string) {
 	ev, ok := S.Problem.Evaluator.Obj.(Evaluator)
 	if !ok {
 		progress <- "Error: wrong evaluator"

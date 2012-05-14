@@ -12,6 +12,10 @@ import (
 
 // InputTester
 
+func init() {
+	db.Register("prog.test.Input", InputTester{})
+}
+
 // An InputTester tests a program by feeding it some input and
 // checking that the output is the same as the model's output.
 type InputTester struct {
@@ -46,33 +50,15 @@ func (I InputTester) CleanUp(*context) error {
 	return nil
 }
 
-func noendl(s string) string {
-	return strings.Replace(s, "\n", `\n`, -1)
-}
-
-func spacesVisible(a string) (s string) {
-	replacements := []struct{ from, to string }{
-		{" ", "\u2423"},
-		{"\n", "\u21B2\n"},
-	}
-	s = a
-	for _, r := range replacements {
-		s = strings.Replace(s, r.from, r.to, -1)
-	}
-	return
-}
-
 func (I InputTester) Veredict(C *context) TestResult {
 	S := C.State.(*InputTesterState)
 	a, b := S.modelOut.String(), S.accusedOut.String()
 	if a == b {
 		return TestResult{Veredict: "Accepted"}
 	}
-	a = spacesVisible(a)
-	b = spacesVisible(b)
 	return TestResult{
 		Veredict: "Wrong Answer",
-		Reason:   db.Obj{&GoodVsBadReason{a, b}},
+		Reason:   db.Obj{&GoodVsBadReason{seeSpace(a), seeSpace(b)}},
 	}
 }
 

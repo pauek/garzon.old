@@ -103,15 +103,25 @@ func marshal(v interface{}, preamble map[string]string) ([]byte, error) {
 }
 
 func (obj *Obj) MarshalJSON() ([]byte, error) {
-	if obj.Obj != nil { 
-		return marshal(obj.Obj, map[string]string{ "-type": findAlias(obj.Obj) })
+	switch obj.Obj.(type) {
+	case nil, string:
+		return json.Marshal(obj.Obj)
 	}
-	return json.Marshal(nil)
+	return marshal(obj.Obj, map[string]string{ "-type": findAlias(obj.Obj) })
 }
 
 func (obj *Obj) UnmarshalJSON(data []byte) (err error) {
 	if string(data) == "null" {
 		obj.Obj = nil
+		return nil
+	}
+	if data[0] == '"' { // a string
+		var s string
+		if err = json.Unmarshal(data, &s); err != nil {
+			err = fmt.Errorf("Cannot json.Unmarshal string")
+			return
+		}
+		obj.Obj = s
 		return nil
 	}
 	var t struct {

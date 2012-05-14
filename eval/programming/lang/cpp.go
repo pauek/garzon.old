@@ -16,7 +16,8 @@ func (L *Cpp) Compile(infile, outfile string) error {
 	cmd.Stderr = &out
 	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("Cpp.Compile: %v", err)
+		output := strings.Replace(out.String(), infile, "code.cc", -1)
+		return &CompilationError{Output: output}
 	}
 	return nil
 }

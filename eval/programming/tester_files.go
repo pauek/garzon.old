@@ -12,6 +12,10 @@ import (
 	"strings"
 )
 
+func init() {
+	db.Register("prog.test.Files", FilesTester{})
+}
+
 // A FilesTester creates some input files, and checks that some 
 // output files are created by the program and have the same
 // contents as the files created by the model program
@@ -153,11 +157,9 @@ func (I FilesTester) Veredict(C *context) TestResult {
 		b = sortLines(b)
 	}
 	if a != b {
-		a = spacesVisible(a)
-		b = spacesVisible(b)
 		return TestResult{
 			Veredict: "Wrong Answer",
-			Reason:   db.Obj{&GoodVsBadReason{a, b}},
+			Reason:   db.Obj{&GoodVsBadReason{seeSpace(a), seeSpace(b)}},
 		}
 	}
 	return TestResult{Veredict: "Accepted"}
