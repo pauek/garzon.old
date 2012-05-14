@@ -40,7 +40,7 @@ func evalWithInputs(model, accused string, I []string) eval.Veredict {
       Solution: model, // FIXME: Code{Lang: "c++", Text: model},
 		Evaluator: db.Obj{ev},
 	}
-	return ev.Evaluate(prob, accused)
+	return ev.Evaluate(prob, accused, nil)
 }
 
 const Minimal = `int main() {}`
@@ -280,13 +280,13 @@ func TestFileTester(t *testing.T) {
 	var V eval.Veredict
 
 	// Good
-	V = filesEv.Evaluate(filesProb, sumABFiles)
+	V = filesEv.Evaluate(filesProb, sumABFiles, nil)
 	if firstRes(V) != "Accepted" {
 		t.Errorf("Test should be accepted")
 	}
 
 	// Creates a file named 'D' instead of 'C'
-	V = filesEv.Evaluate(filesProb, wrongFiles1)
+	V = filesEv.Evaluate(filesProb, wrongFiles1, nil)
 	R0 := results(V)[0]
 	if R0.Veredict != "Execution Error" {
 		t.Errorf("Should be 'Execution Error'")
@@ -300,7 +300,7 @@ func TestFileTester(t *testing.T) {
 	}
 
 	// Doesn't compute sum
-	V = filesEv.Evaluate(filesProb, wrongAnswer1)
+	V = filesEv.Evaluate(filesProb, wrongAnswer1, nil)
 	if res := firstRes(V); res != "Wrong Answer" {
 		t.Errorf("Wrong Veredict ('%s')", res)
 	}

@@ -134,11 +134,13 @@ func init() {
 	GrzJail = "grz-jail" // assume its in the PATH
 }
 
-func (E Evaluator) Evaluate(P *eval.Problem, Solution string, progress chan string) eval.Veredict {
+func (E Evaluator) Evaluate(P *eval.Problem, Solution string, progress chan<- string) eval.Veredict {
 	E.progress = progress
 
 	// FIXME: get lang from string
-	progress <- "Preparing"
+	if progress != nil {
+		progress <- "Preparing"
+	}
 	C, err := E.prepareContext(P, Code{Text: Solution, Lang: "c++"})
 	if err != nil {
 		return eval.Veredict{Message: fmt.Sprintf("%s\n", err)}
@@ -147,7 +149,9 @@ func (E Evaluator) Evaluate(P *eval.Problem, Solution string, progress chan stri
 	ver := make(map[string]bool)
 	for i, dbobj := range E.Tests {
 		tester := dbobj.Obj.(Tester)
-		progress <- fmt.Sprintf("Test %d", i+1)
+		if progress != nil {
+			progress <- fmt.Sprintf("Test %d", i+1)
+		}
 		E.runTest(C, tester, &results[i])
 		ver[results[i].Veredict] = true
 	}

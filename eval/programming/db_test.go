@@ -16,7 +16,8 @@ func TestStoreProblem(t *testing.T) {
 
 	D, err := db.GetOrCreateDB(dbname)
 	if err != nil {
-		t.Fatalf("Cannot get or create database: %s\n", err)
+		t.Errorf("Cannot get or create database: %s\n", err)
+		return
 	}
 
 	const pid = "Cpp.Intro.SumaEnteros"
