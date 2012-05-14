@@ -1,0 +1,6 @@
+
+grz-jail: 
+- Añadir las opciones de ptrace para seguir los subprocesos
+  creados con "clone", "fork", "vfork", etc. [hard]
+
+
