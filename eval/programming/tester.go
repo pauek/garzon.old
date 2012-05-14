@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -52,14 +53,26 @@ func noendl(s string) string {
 	return strings.Replace(s, "\n", `\n`, -1)
 }
 
+func spacesVisible(a string) (s string) {
+	replacements := []struct{ from, to string }{
+		{" ", "\u2423"},
+		{"\n", "\u21B2\n"},
+	}
+	s = a
+	for _, r := range replacements {
+		s = strings.Replace(s, r.from, r.to, -1)
+	}
+	return
+}
+
 func (I InputTester) Veredict(C *context) TestResult {
 	S := C.State.(*InputTesterState)
 	a, b := S.modelOut.String(), S.accusedOut.String()
 	if a == b {
 		return TestResult{Veredict: "Accepted"}
 	}
-	a = strings.Replace(a, " ", "\u2423", -1)
-	b = strings.Replace(b, " ", "\u2423", -1)
+	a = spacesVisible(a)
+	b = spacesVisible(b)
 	return TestResult{
 		Veredict: "Wrong Answer",
 		Reason:   db.Obj{&GoodVsBadReason{a, b}},
@@ -82,6 +95,7 @@ type FilesTester struct {
 	Input       string
 	InputFiles  []FileInfo
 	OutputFiles []FileInfo
+	Options     map[string]bool `json:",omitempty"`
 	state       *InputTesterState
 }
 
@@ -173,6 +187,28 @@ func equalBytes(a, b []byte) bool {
 	return true
 }
 
+func sortLines(a string) string {
+	if a[len(a)-1] == '\n' {
+		a = a[:len(a)-1]
+	}
+	lines := strings.Split(a, "\n")
+	sort.Strings(lines)
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func blocks(a string, sorted bool) string {
+	blocks := strings.Split(a, "\n\n")
+	if blocks[len(blocks)-1] == "" {
+		blocks = blocks[:len(blocks)-1]
+	}
+	if sorted {
+		for i := range blocks {
+			blocks[i] = sortLines(blocks[i])
+		}
+	}
+	return strings.Join(blocks, "\n\n")	+ "\n\n"
+}
+
 func (I FilesTester) Veredict(C *context) TestResult {
 	state := C.State.(*FileTesterState)
 	n := len(I.OutputFiles)
@@ -185,9 +221,16 @@ func (I FilesTester) Veredict(C *context) TestResult {
 		}
 	}
 	a, b := state.modelOut.String(), state.accusedOut.String()
+	if I.Options["blocks"] {
+		a = blocks(a, I.Options["sort"])
+		b = blocks(b, I.Options["sort"])
+	} else if I.Options["sort"] {
+		a = sortLines(a)
+		b = sortLines(b)
+	}
 	if a != b {
-		a = strings.Replace(a, " ", "\u2423", -1)
-		b = strings.Replace(b, " ", "\u2423", -1)
+		a = spacesVisible(a)
+		b = spacesVisible(b)
 		return TestResult{
 			Veredict: "Wrong Answer",
 			Reason:   db.Obj{&GoodVsBadReason{a, b}},
@@ -200,7 +243,7 @@ func (I *FilesTester) ReadFrom(path string) (err error) {
 	if fileExists(path + "/in") {
 		text, err := ioutil.ReadFile(path + "/in")
 		if err != nil {
-			return fmt.Errorf("InputTester.ReadFrom: cannot read '%s': %s\n", path, err)
+			return fmt.Errorf("FilesTester.ReadFrom: cannot read '%s/in': %s\n", path, err)
 		}
 		I.Input = string(text)
 	}
@@ -211,6 +254,20 @@ func (I *FilesTester) ReadFrom(path string) (err error) {
 	I.OutputFiles, err = readFiles(path, "out")
 	if err != nil {
 		return err
+	}
+	if fileExists(path + "/options") {
+		text, err := ioutil.ReadFile(path + "/options")
+		if err != nil {
+			return fmt.Errorf("FilesTester.ReadFrom: cannot read '%s/options': %s\n", path, err)
+		}
+		I.Options = make(map[string]bool)
+		lines := strings.Split(string(text), "\n")
+		for _, line := range lines {
+			opt := strings.Trim(line, " \t")
+			if opt != "" {
+				I.Options[opt] = true
+			}
+		}
 	}
 	return nil
 }
