@@ -16,19 +16,23 @@ type CompilationError struct {
 
 func (e *CompilationError) Error() string { return "Compilation Error" }
 
-var Languages map[string]*Language
+var byName = make(map[string]*Language)
+var byExt = make(map[string]*Language)
 
-func init() {
-	Languages = make(map[string]*Language)
-	Languages["c++"] = &Language{
-		Name:      "c++",
-		Extension: "cc",
-		Functions: new(Cpp),
-	}
+func Register(lang *Language) {
+	byName[lang.Name] = lang
+	byExt[lang.Extension] = lang
 }
 
-func Get(lang string) *Language {
-	if L, ok := Languages[lang]; ok {
+func ByName(name string) *Language {
+	if L, ok := byName[name]; ok {
+		return L
+	}
+	return nil
+}
+
+func ByExtension(ext string) *Language {
+	if L, ok := byExt[ext]; ok {
 		return L
 	}
 	return nil

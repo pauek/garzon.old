@@ -1,14 +1,17 @@
-
 package lang
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
-	"bytes"
 	"strings"
 )
 
-type Cpp string
+func init() {
+	Register(&Language{"C++", ".cc", new(Cpp)})
+}
+
+type Cpp struct{}
 
 func (L *Cpp) Compile(infile, outfile string) error {
 	cmd := exec.Command("g++", "-static", "-o", outfile, infile)

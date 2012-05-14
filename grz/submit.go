@@ -1,11 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"strings"
 	"io/ioutil"
-
+	"path/filepath"
 )
 
 const u_submit = `grz submit <ProblemID> <filename>`
@@ -25,12 +26,20 @@ func submit(args []string) {
 	}
 
 	probid, filename := checkTwoArgs("submit", fset.Args())
+	
+	ext := filepath.Ext(filename)
+	if ext == "" {
+		_errx("File has no extension: cannot determine language")
+	}
 
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%s\n", ext)
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		_errx("Cannot read file '%s'", filename)
 	}
-	resp, err := client.Submit(probid, filename, data)
+	buf.Write(data)
+	resp, err := client.Submit(probid, filename, buf.Bytes())
 	if err != nil {
 		_errx("Submission error: %s", err)
 	}

@@ -61,8 +61,8 @@ func (C *context) CreateDirectory() error {
 }
 
 func (C *context) WriteAndCompile(whom string) error {
-	L, ok := lang.Languages[C.lang[whom]]
-	if !ok {
+	L := lang.ByExtension(C.lang[whom])
+	if L == nil {
 		return fmt.Errorf("Unsupported language '%s'", C.lang[whom])
 	}
 	codefile := fmt.Sprintf("%s/.%s/code.%s", C.dir, whom, L.Extension)
@@ -134,6 +134,18 @@ func init() {
 	GrzJail = "grz-jail" // assume its in the PATH
 }
 
+func getProgram(solution string) (program Code, ok bool) {
+	i := strings.Index(solution, "\n"); 
+	if i == -1 {
+		return Code{}, false
+	} 
+	program = Code{
+		Lang: solution[:i],
+		Text: solution[i+1:],
+	}
+	return program, true
+}
+
 func (E Evaluator) Evaluate(P *eval.Problem, Solution string, progress chan<- string) eval.Veredict {
 	E.progress = progress
 
@@ -141,7 +153,14 @@ func (E Evaluator) Evaluate(P *eval.Problem, Solution string, progress chan<- st
 	if progress != nil {
 		progress <- "Preparing"
 	}
-	C, err := E.prepareContext(P, Code{Text: Solution, Lang: "c++"})
+	// determine language
+	code, ok := getProgram(Solution)
+	if !ok {
+		return eval.Veredict{Message: "Cannot determine language"}
+	}
+
+	// prepareContext (create dirs, compile)
+	C, err := E.prepareContext(P, code)
 	if err != nil {
 		if comperr, ok := err.(*lang.CompilationError); ok {
 			return eval.Veredict{
@@ -180,8 +199,10 @@ func (E Evaluator) Evaluate(P *eval.Problem, Solution string, progress chan<- st
 
 func (E Evaluator) prepareContext(P *eval.Problem, accused Code) (C *context, err error) {
 	id := hash(accused.Text)
-	// FIXME: Get Lang from the string itself
-	model := Code{Text: P.Solution, Lang: "c++"}
+	model, ok := getProgram(P.Solution)
+	if !ok {
+		return nil, fmt.Errorf("Cannot get model language")
+	}
 	C = newContext(BaseDir+"/"+id, model, accused, E)
 	if err := C.CreateDirectory(); err != nil {
 		return nil, err
@@ -274,15 +295,16 @@ func (E *Evaluator) ReadDir(dir string, prob *eval.Problem) error {
 			fmt.Fprintf(os.Stderr, "Warning: ignoring solution '%s'\n", m)
 		}
 	}
+	
+	ext := filepath.Ext(sol)
+	lang := lang.ByExtension(ext)
 
-	// TODO: Handle more programming languages
 	solstr, err := ioutil.ReadFile(sol)
 	if err != nil {
 		return fmt.Errorf("Cannot read file '%s': %s\n", sol, err)
 	}
-	// TODO: Put extension in the first line:
-	//   prob.Solution = fmt.Sprintf("c++\n%s", solstr)
-	prob.Solution = string(solstr)
+	// extension in the first line (to be cut later)
+	prob.Solution = fmt.Sprintf("%s\n%s", lang.Extension, solstr)
 
 	// path/filepath.glob: "New matches are added in 
 	//   lexicographical order" (we use that for now)
