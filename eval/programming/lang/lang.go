@@ -1,8 +1,9 @@
 package lang
 
 type Language struct {
-	Name, Extension string
-	Functions       Compiler
+	Name       string
+	Extensions []string
+	Functions  Compiler
 }
 
 type Compiler interface {
@@ -21,7 +22,9 @@ var byExt = make(map[string]*Language)
 
 func Register(lang *Language) {
 	byName[lang.Name] = lang
-	byExt[lang.Extension] = lang
+	for _, ext := range lang.Extensions {
+		byExt[ext] = lang
+	}
 }
 
 func ByName(name string) *Language {

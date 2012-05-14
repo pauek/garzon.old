@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	Register(&Language{"C++", ".cc", new(Cpp)})
+	Register(&Language{"C++", []string{".cc", ".cpp", ".cxx"}, new(Cpp)})
 }
 
 type Cpp struct{}

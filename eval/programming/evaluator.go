@@ -65,7 +65,7 @@ func (C *context) WriteAndCompile(whom string) error {
 	if L == nil {
 		return fmt.Errorf("Unsupported language '%s'", C.lang[whom])
 	}
-	codefile := fmt.Sprintf("%s/.%s/code.%s", C.dir, whom, L.Extension)
+	codefile := fmt.Sprintf("%s/.%s/code.%s", C.dir, whom, L.Extensions[0])
 	if err := ioutil.WriteFile(codefile, []byte(C.code[whom]), 0600); err != nil {
 		return fmt.Errorf("Couldn't write %s file '%s'", whom, codefile)
 	}
@@ -297,14 +297,12 @@ func (E *Evaluator) ReadDir(dir string, prob *eval.Problem) error {
 	}
 	
 	ext := filepath.Ext(sol)
-	lang := lang.ByExtension(ext)
-
 	solstr, err := ioutil.ReadFile(sol)
 	if err != nil {
 		return fmt.Errorf("Cannot read file '%s': %s\n", sol, err)
 	}
 	// extension in the first line (to be cut later)
-	prob.Solution = fmt.Sprintf("%s\n%s", lang.Extension, solstr)
+	prob.Solution = fmt.Sprintf("%s\n%s", ext, solstr)
 
 	// path/filepath.glob: "New matches are added in 
 	//   lexicographical order" (we use that for now)
