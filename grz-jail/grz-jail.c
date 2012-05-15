@@ -390,8 +390,6 @@ void kill_accused() {
    if (accused_pid[0] > 0) {
       accused_sample_mem_peak();
       ptrace(PTRACE_KILL, accused_pid[0]);
-      kill(-accused_pid[0], SIGKILL); // ?
-      kill( accused_pid[0], SIGKILL);
       int p, stat;
       do {
          p = wait4(accused_pid[0], &stat, 0, &usage);
