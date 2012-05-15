@@ -190,6 +190,10 @@ inline const char *syscall_name(unsigned int id) {
 #define NUM_SYSCALLS sizeof_array(_syscall_names)
 
 static const char* _syscall_arg_types[NUM_SYSCALLS + 64] = { // +64?
+   // i  integer (long)
+   // f  filename
+   // .  ignore
+   // *  ignore all starting from this one.
 #define S(x) [__NR_##x]
    // Syscalls with filenames in them
    S(open)     = "f*",
@@ -239,6 +243,15 @@ static const char* _syscall_arg_types[NUM_SYSCALLS + 64] = { // +64?
    S(alarm)           = "i",
    S(pause)           = "",
    S(nanosleep)       = "*",
+
+   // Go
+   S(getrlimit)       = "i.i",
+   S(rt_sigprocmask)  = "i..",
+   S(rt_sigaction)    = "i.i",
+   S(gettimeofday)    = ".i.",
+   S(sigaltstack)     = ".ii",
+   S(clone)           = "*",
+   S(futex)           = ".ii",
 #undef S
 };
 
