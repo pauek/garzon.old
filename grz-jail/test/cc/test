@@ -4,6 +4,8 @@ function c()  { gcc -static -o $*; }
 function cc() { g++ -static -o $*; }
 function T()  { exe=$1; file=$2; ${file#*.} $exe $file; }
 
+go install ../..
+
 T a inf_loop.c
 T b mem_sink.cc
 T c segfault.c
@@ -15,3 +17,10 @@ T h good_vector_1e8.cc
 T i good_vector_1e7_clear.cc
 T j open_file.cc
 
+for f in [a-j]; do
+  mv $f exe
+  echo $f
+  grz-jail .
+  echo
+done
+rm exe
