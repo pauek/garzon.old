@@ -43,7 +43,8 @@ func evalWithInputs(model, accused string, I []string) eval.Veredict {
 	return ev.Evaluate(prob, accused, nil)
 }
 
-const Minimal = `int main() {}`
+const Minimal = `.cc
+int main() {}`
 var OneEmptyInput = []string{""}
 
 func results(V eval.Veredict) []TestResult {
@@ -56,12 +57,14 @@ func firstRes(V eval.Veredict) string {
 
 func TestMinimal(t *testing.T) {
 	V := evalWithInputs(Minimal, Minimal, OneEmptyInput)
+	fmt.Println(V)
 	if results(V)[0].Veredict != "Accepted" {
 		t.Fail()
 	}
 }
 
-const PrintX = `#include <iostream>
+const PrintX = `.cc
+#include <iostream>
 int main() { std::cout << "%s" << std::endl; }`
 
 func TestDifferentOutput(t *testing.T) {
@@ -73,25 +76,25 @@ func TestDifferentOutput(t *testing.T) {
 	}
 }
 
-const Wrong = `int main{}`
+const Wrong = `.cc
+int main{}`
 
 func TestModelDoesntCompile(t *testing.T) {
 	V := evalWithInputs(Wrong, Minimal, OneEmptyInput)
-	errmsg := fmt.Sprintf("%s", V.Message)
-	if ! strings.HasPrefix(errmsg, "Error compiling 'model':") {
-		t.Errorf("Error is not \"Error compiling 'model'\" (is \"%s\")", errmsg)
+	if V.Message != "Model doesn't compile!" {
+		t.Errorf(`Error is not "Model doesn't compile" (is '%s')"`, V.Message)
 	}
 }
 
 func TestAccusedDoesntCompile(t *testing.T) {
 	V := evalWithInputs(Minimal, Wrong, OneEmptyInput)
-	errmsg := fmt.Sprintf("%s", V.Message)
-	if ! strings.HasPrefix(errmsg, "Error compiling 'accused':") {
-		t.Errorf("Error is not \"Error compiling 'accused'\" (is \"%s\")", errmsg)
+	if V.Message != "Compilation Error" {
+		t.Errorf(`Error should be "Compilation Error" (not '%s')`, V.Message)
 	}
 }
 
-const SumAB = `#include <iostream>
+const SumAB = `.cc
+#include <iostream>
 
 int main() {
    int a, b;
@@ -111,9 +114,11 @@ func TestSumAB(t *testing.T) {
 	}
 }
 
-const Echo = `#include <iostream>
+const Echo = `.cc
+#include <iostream>
 int main() { int a; std::cin >> a; std::cout << a; }`
-const EchoX = `#include <iostream>
+const EchoX = `.cc
+#include <iostream>
 int main() { int a; std::cin >> a; std::cout << (a == 3 ? -1 : a); }`
 
 func TestEcho(t *testing.T) {
@@ -153,23 +158,23 @@ func testExecutionError(t *testing.T, model, accused string, expected string) {
 }
 
 func TestTimeLimitExceeded(t *testing.T) {
-	infLoop := `int main() { while (1); }`
+	infLoop := ".cc\nint main() { while (1); }"
 	testExecutionError(t, Minimal, infLoop, "Time Limit Exceeded")
 }
 
 func TestSegmentationFault(t *testing.T) {
-	segFault := `int main() { int T[1]; T[1000000] = 1; }`
+	segFault := ".cc\nint main() { int T[1]; T[1000000] = 1; }"
 	testExecutionError(t, Minimal, segFault, "Segmentation Fault")
 }
 
 func TestMemoryLimit1(t *testing.T) {
-	normal := "#include <vector>\nint main() { std::vector<int> v(1000000); }"
-	abort  := "#include <vector>\nint main() { std::vector<int> v(100000000); }"
+	normal := ".cc\n#include <vector>\nint main() { std::vector<int> v(1000000); }"
+	abort  := ".cc\n#include <vector>\nint main() { std::vector<int> v(100000000); }"
 	testExecutionError(t, normal, abort, "Memory Limit Exceeded")
 }
 
 func TestMemoryLimit2(t *testing.T) {
-	normal := `
+	normal := `.cc
 #include <stdlib.h>
 
 int main() {
@@ -180,7 +185,7 @@ int main() {
 	}
 }
 `
-	wrong := `
+	wrong := `.cc
 #include <stdlib.h>
 
 int main() {
@@ -198,17 +203,19 @@ int main() {
 // TODO: Interrupted
 
 func TestForbiddenSyscall1(t *testing.T) {
-	opener := `#include <fstream>
-   int main() { std::ofstream F("file"); F << '\n'; }`
+	opener := `.cc
+#include <fstream>
+int main() { std::ofstream F("file"); F << '\n'; }`
 	testExecutionError(t, Minimal, opener, `Forbidden Syscall 'open\("file"\)'`)
 }
 
 func TestForbiddenSyscall(t *testing.T) {
-	execer := `#include <unistd.h>
-   int main() { 
-      char *argv[] = { NULL }, *envp[] = { NULL };
-      execve("/bin/ls", argv, envp); 
-   }`
+	execer := `.cc
+#include <unistd.h>
+int main() { 
+   char *argv[] = { NULL }, *envp[] = { NULL };
+   execve("/bin/ls", argv, envp); 
+}`
 	testExecutionError(t, Minimal, execer, 
 		`Forbidden Syscall '_execve\([0-9a-f]*,[0-9a-f]*,[0-9a-f]*\)'`)
 }
@@ -217,7 +224,7 @@ func TestForbiddenSyscall(t *testing.T) {
 // TODO: Forbidden Syscall (unlink) ?
 // TODO: Forbidden Syscall (kill) ?
 
-const sumABFiles = `
+const sumABFiles = `.cc
 #include <fstream>
 using namespace std;
 
@@ -230,7 +237,7 @@ int main() {
 }
 `
 
-const wrongFiles1 = `
+const wrongFiles1 = `.cc
 #include <fstream>
 using namespace std;
 
@@ -243,7 +250,7 @@ int main() {
 }
 `
 
-const wrongAnswer1 = `
+const wrongAnswer1 = `.cc
 #include <fstream>
 using namespace std;
 
