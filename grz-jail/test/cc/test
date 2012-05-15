@@ -13,7 +13,7 @@ T d sigint.c
 T e good_vector_1e4_rep.cc
 T f good_vector_1e6.cc
 T g good_vector_1e7.cc
-T h good_vector_1e8.cc
+T h bad_vector_1e8.cc
 T i good_vector_1e7_clear.cc
 T j open_file.cc
 
@@ -23,4 +23,4 @@ for f in [a-j]; do
   grz-jail .
   echo
 done
-rm exe
+rm -f exe .syscalls
