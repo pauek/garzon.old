@@ -315,7 +315,7 @@ int syscall_list_find(const char *repr) {
 
 /** Accused **/
 
-pid_t accused_pid = 0;
+pid_t accused_pid[2] = {0, 0};
 int   passed_exec = 0;
 int   accused_mem_peak_kb = 0;
 struct timeval start_time;
@@ -357,7 +357,7 @@ void accused_sample_mem_peak() {
     *  that the process is about to exit.
     */
    char buf[PROC_BUF_SIZE], *x;
-   read_proc_status(accused_pid, buf);
+   read_proc_status(accused_pid[0], buf);
    
    x = buf;
    while (*x) {
@@ -379,22 +379,22 @@ void accused_sample_mem_peak() {
 }
 
 int wait_for_accused(int *stat) {
-   pid_t p = wait4(accused_pid, stat, WUNTRACED, &usage);
+   pid_t p = wait4(accused_pid[0], stat, WUNTRACED, &usage);
    if (p < 0 && errno == EINTR) return 1;
    die_if(p < 0, "wait4 error %d\n", errno);
-   die_if(p != accused_pid, "wait4: unknown pid '%d'\n", p);
+   die_if(p != accused_pid[0], "wait4: unknown pid '%d'\n", p);
    return 0;
 }
 
 void kill_accused() {
-   if (accused_pid > 0) {
+   if (accused_pid[0] > 0) {
       accused_sample_mem_peak();
-      ptrace(PTRACE_KILL, accused_pid);
-      kill(-accused_pid, SIGKILL); // ?
-      kill( accused_pid, SIGKILL);
+      ptrace(PTRACE_KILL, accused_pid[0]);
+      kill(-accused_pid[0], SIGKILL); // ?
+      kill( accused_pid[0], SIGKILL);
       int p, stat;
       do {
-         p = wait4(accused_pid, &stat, 0, &usage);
+         p = wait4(accused_pid[0], &stat, 0, &usage);
       } while (p < 0 && errno == EINTR);
       die_if(p < 0, "Lost track of the accused!");
    }
@@ -407,7 +407,7 @@ inline int final_time() {
 }
 
 void accused_exited(int stat) {
-   accused_pid = 0;
+   accused_pid[0] = 0;
    if (!passed_exec) {
       die("Internal Error\n");
    }
@@ -421,7 +421,7 @@ void accused_exited(int stat) {
 }
 
 void accused_signaled(int stat) {
-   accused_pid = 0;
+   accused_pid[0] = 0;
    report_failure("Execution Error\nSignalled %d\n", WTERMSIG(stat));
 }
 
@@ -436,7 +436,7 @@ const char *get_syscall_filename_arg(uint64_t addr) {
          int l = namebuf + sizeof(namebuf) - end;
          if (l > remains) l = remains;
          if (!l) report_execerror("Access to file with name too long");
-         remains = read_user_mem(accused_pid, addr, end, l);
+         remains = read_user_mem(accused_pid[0], addr, end, l);
          die_if(remains < 0, "read(mem): %s\n", strerror(errno));
          if (!remains) {
             report_execerror("Access to file with name out of memory");
@@ -449,7 +449,7 @@ const char *get_syscall_filename_arg(uint64_t addr) {
 }
 
 void get_syscall_args(syscall_args *args, int after) {
-   int ret = ptrace(PTRACE_GETREGS, accused_pid, NULL, &user);
+   int ret = ptrace(PTRACE_GETREGS, accused_pid[0], NULL, &user);
    die_if(ret < 0, "ptrace(PTRACE_GETREGS)\n");
    args->sys = user.regs.orig_rax;
    args->result = user.regs.rax;
@@ -555,7 +555,7 @@ void accused_stopped(int stat) {
 
    if (sig == SIGSTOP) {
       // first signal
-      int ret = ptrace(PTRACE_SETOPTIONS, accused_pid, NULL, 
+      int ret = ptrace(PTRACE_SETOPTIONS, accused_pid[0], NULL, 
                        (void*) PTRACE_O_TRACESYSGOOD);
       die_if(ret < 0, "ptrace(PTRACE_SETOPTIONS)");
    } else if (sig == (SIGTRAP | 0x80)) {  // Syscall
@@ -578,7 +578,7 @@ void accused_stopped(int stat) {
          }
       }
    }
-   ptrace(PTRACE_SYSCALL, accused_pid, 0, 0);
+   ptrace(PTRACE_SYSCALL, accused_pid[0], 0, 0);
 }
 
 inline void get_start_time() {
@@ -632,9 +632,9 @@ void grzjail(char *dir) {
       die_if(perm_fd < 0, "Couldn't open '%s'\n", perm_file);
    }
 
-   accused_pid = fork();
-   die_if(accused_pid < 0, "Couldn't fork\n");
-   if (accused_pid == 0) { // Child
+   accused_pid[0] = fork();
+   die_if(accused_pid[0] < 0, "Couldn't fork\n");
+   if (accused_pid[0] == 0) { // Child
       the_accused(dir);
    } else {
       guardian();
