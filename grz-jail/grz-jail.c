@@ -378,11 +378,11 @@ void accused_sample_mem_peak() {
    }
 }
 
-int wait_for_accused(int *stat) {
-   pid_t p = wait4(accused_pid[0], stat, WUNTRACED, &usage);
-   if (p < 0 && errno == EINTR) return 1;
-   die_if(p < 0, "wait4 error %d\n", errno);
-   die_if(p != accused_pid[0], "wait4: unknown pid '%d'\n", p);
+int wait_for_accused(int *stat, int *pid) {
+   *pid = wait3(stat, WUNTRACED, &usage);
+   if (*pid < 0 && errno == EINTR) return 1;
+   die_if(*pid < 0, "wait3 error %d\n", errno);
+   // die_if(p != accused_pid[0], "wait4: unknown pid '%d'\n", p);
    return 0;
 }
 
@@ -546,16 +546,23 @@ void accused_after_syscall() {
    curr_sys = -1;
 }
 
-void accused_stopped(int stat) {
+void accused_stopped(int stat, pid_t pid) {
    static int stop_count = 0, sys_tick = 0;
 
-   int sig = WSTOPSIG(stat);
+   printf("accused_stopped(%d, %d) = %d\n", stat, pid, WSTOPSIG(stat));
 
+   int sig = WSTOPSIG(stat);
    if (sig == SIGSTOP) {
       // first signal
-      int ret = ptrace(PTRACE_SETOPTIONS, accused_pid[0], NULL, 
-                       (void*) PTRACE_O_TRACESYSGOOD);
+      int ret = ptrace(PTRACE_SETOPTIONS, pid, NULL, 
+                       (void*) (PTRACE_O_TRACESYSGOOD |
+                                PTRACE_O_TRACEFORK |
+                                PTRACE_O_TRACEVFORK |
+                                PTRACE_O_TRACECLONE));
       die_if(ret < 0, "ptrace(PTRACE_SETOPTIONS)");
+   } else if (sig == (SIGTRAP | PTRACE_EVENT_CLONE << 8) ||
+              sig == (SIGTRAP | PTRACE_EVENT_VFORK << 8)) {
+      printf("clone!\n");
    } else if (sig == (SIGTRAP | 0x80)) {  // Syscall
       if (++sys_tick & 1) { // Syscall entry
          accused_before_syscall();
@@ -563,6 +570,7 @@ void accused_stopped(int stat) {
          accused_after_syscall();
       }
    } else {
+      printf("here %d\n", sig);
       switch (sig) {
       case SIGABRT: report_execerror("Aborted");
       case SIGINT:  report_execerror("Interrupted");
@@ -570,13 +578,16 @@ void accused_stopped(int stat) {
       case SIGSEGV: report_execerror("Segmentation Fault");
       case SIGXCPU: report_execerror("Time Limit Exceeded");
       case SIGXFSZ: report_execerror("File Size Exceeded");
+      /*
       case SIGTRAP: 
          if (++stop_count > 1) {
+            printf("exec error\n");
             report_execerror("Breakpoint");
          }
+      */
       }
    }
-   ptrace(PTRACE_SYSCALL, accused_pid[0], 0, 0);
+   ptrace(PTRACE_SYSCALL, pid, 0, 0);
 }
 
 inline void get_start_time() {
@@ -601,11 +612,13 @@ void check_exe(char *dir) {
 
 void guardian() {
    int stat;
+   pid_t pid;
 
    get_start_time();
    
    while (1) {
-      int cont = wait_for_accused(&stat);
+      int cont = wait_for_accused(&stat, &pid);
+      printf("pid = %d\n", pid);
       if (cont) {
          continue;
       } else if (WIFEXITED(stat)) {
@@ -613,7 +626,7 @@ void guardian() {
       } else if (WIFSIGNALED(stat)) {
          accused_signaled(stat);
       } else if (WIFSTOPPED(stat)) {
-         accused_stopped(stat);
+         accused_stopped(stat, pid);
       } else {
          die("wait4: unknown status '%d'", stat);
       }
