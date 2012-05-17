@@ -164,9 +164,13 @@ func (I FilesTester) Veredict(C *context) TestResult {
 		b = sortLines(b)
 	}
 	if a != b {
+		var reason interface{}
+		if !I.Options["performance"] {
+			reason = &GoodVsBadReason{seeSpace(a), seeSpace(b)}
+		}
 		return TestResult{
 			Veredict: "Wrong Answer",
-			Reason:   db.Obj{&GoodVsBadReason{seeSpace(a), seeSpace(b)}},
+			Reason:   db.Obj{reason},
 		}
 	}
 	return TestResult{Veredict: "Accepted", Reason: db.Obj{state.modelPerf}}
