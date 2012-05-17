@@ -100,6 +100,13 @@ func (I FilesTester) CleanUp(C *context) (err error) {
 			return fmt.Errorf("FilesTester: Cannot remove file '%s': %s\n", path, err)
 		}
 	}
+	// remember performance
+	switch C.Mode() {
+	case "model":
+		state.modelPerf = parsePerformance(C.stderr)
+	case "accused":
+		state.accusedPerf = parsePerformance(C.stderr)
+	}
 	return nil
 }
 
@@ -162,7 +169,7 @@ func (I FilesTester) Veredict(C *context) TestResult {
 			Reason:   db.Obj{&GoodVsBadReason{seeSpace(a), seeSpace(b)}},
 		}
 	}
-	return TestResult{Veredict: "Accepted"}
+	return TestResult{Veredict: "Accepted", Reason: db.Obj{state.modelPerf}}
 }
 
 func (I *FilesTester) ReadFrom(path string) (err error) {

@@ -24,7 +24,8 @@ type InputTester struct {
 }
 
 type InputTesterState struct {
-	modelOut, accusedOut bytes.Buffer
+	modelOut, accusedOut   bytes.Buffer
+	modelPerf, accusedPerf Performance
 }
 
 func (I InputTester) Prepare(C *context) {
@@ -46,15 +47,23 @@ func (I InputTester) SetUp(C *context, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (I InputTester) CleanUp(*context) error {
+func (I InputTester) CleanUp(C *context) error {
+	S := C.State.(*InputTesterState)
+	switch C.Mode() {
+	case "model":
+		S.modelPerf = parsePerformance(C.stderr)
+	case "accused":
+		S.accusedPerf = parsePerformance(C.stderr)
+	}
 	return nil
 }
 
 func (I InputTester) Veredict(C *context) TestResult {
 	S := C.State.(*InputTesterState)
 	a, b := S.modelOut.String(), S.accusedOut.String()
+
 	if a == b {
-		return TestResult{Veredict: "Accepted"}
+		return TestResult{Veredict: "Accepted", Reason: db.Obj{S.modelPerf}}
 	}
 	return TestResult{
 		Veredict: "Wrong Answer",

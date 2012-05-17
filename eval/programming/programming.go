@@ -64,8 +64,15 @@ func (tr TestResult) String() string {
 		} else {
 			fmt.Fprintf(&b, "\n")
 		}
+	} else {
+		fmt.Fprintf(&b, " [%+v]\n", tr.Reason)
 	}
 	return b.String()
+}
+
+type Performance struct {
+	Seconds float32
+	Megabytes float32
 }
 
 type SimpleReason struct {

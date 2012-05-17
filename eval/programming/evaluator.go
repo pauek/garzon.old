@@ -24,6 +24,7 @@ type context struct {
 	limits Constraints
 	lang   map[string]string
 	code   map[string]string
+	stderr string // the stderr written by grz-jail
 
 	State interface{}
 }
@@ -148,6 +149,7 @@ func getProgram(solution string) (program Code, ok bool) {
 
 func (E Evaluator) Evaluate(P *eval.Problem, Solution string, progress chan<- string) eval.Veredict {
 	E.progress = progress
+	log.Printf("Evaluate(%+v)", P.Evaluator.Obj)
 
 	// FIXME: get lang from string
 	if progress != nil {
@@ -245,6 +247,7 @@ func (E Evaluator) runTest(C *context, T Tester, R *TestResult) (err error) {
 			}
 			return false
 		}
+		C.stderr = stderr.String()
 		if err = T.CleanUp(C); err != nil {
 			return false
 		}

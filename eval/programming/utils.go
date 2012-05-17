@@ -1,10 +1,9 @@
-
 package programming
 
 import (
-	"io"
-	"fmt"
 	"crypto/sha1"
+	"fmt"
+	"io"
 	"strings"
 )
 
@@ -18,9 +17,9 @@ func prefix(s string, length int) string {
 	max := length
 	suffix := "..."
 	if len(s) < length {
-      max = len(s)
+		max = len(s)
 		suffix = ""
-   }
+	}
 	return strings.Replace(s[:max], "\n", `\n`, -1) + suffix
 }
 
@@ -32,6 +31,17 @@ func seeSpace(a string) (s string) {
 	s = a
 	for _, r := range replacements {
 		s = strings.Replace(s, r.from, r.to, -1)
+	}
+	return
+}
+
+func parsePerformance(s string) (perf Performance) {
+	lines := strings.Split(s, "\n")
+	if len(lines) > 1 {
+		fmt.Sscanf(lines[1], "%f", &perf.Seconds)
+	}
+	if len(lines) > 2 {
+		fmt.Sscanf(lines[2], "%f", &perf.Megabytes)
 	}
 	return
 }

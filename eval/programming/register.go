@@ -7,6 +7,7 @@ import (
 func init() {
 	db.Register("prog.Evaluator", Evaluator{})
 	db.Register("prog.VeredictDetails", VeredictDetails{})
+	db.Register("prog.Performance", Performance{})
 	db.Register("prog.test.Result", TestResult{})
 	db.Register("prob.SimpleReason", SimpleReason{})
 	db.Register("prob.GoodVsBadReason", GoodVsBadReason{})
