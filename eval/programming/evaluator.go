@@ -136,10 +136,10 @@ func init() {
 }
 
 func getProgram(solution string) (program Code, ok bool) {
-	i := strings.Index(solution, "\n"); 
+	i := strings.Index(solution, "\n")
 	if i == -1 {
 		return Code{}, false
-	} 
+	}
 	program = Code{
 		Lang: solution[:i],
 		Text: solution[i+1:],
@@ -298,7 +298,7 @@ func (E *Evaluator) ReadDir(dir string, prob *eval.Problem) error {
 			fmt.Fprintf(os.Stderr, "Warning: ignoring solution '%s'\n", m)
 		}
 	}
-	
+
 	ext := filepath.Ext(sol)
 	solstr, err := ioutil.ReadFile(sol)
 	if err != nil {
@@ -307,6 +307,10 @@ func (E *Evaluator) ReadDir(dir string, prob *eval.Problem) error {
 	// extension in the first line (to be cut later)
 	prob.Solution = fmt.Sprintf("%s\n%s", ext, solstr)
 
+	// Read limits
+	E.Limits = readLimits(dir + "/limits")
+
+	// Read Tests
 	// path/filepath.glob: "New matches are added in 
 	//   lexicographical order" (we use that for now)
 	matches, err = filepath.Glob(dir + "/test.*.*")
@@ -335,4 +339,24 @@ func getType(path string) string {
 		panic("Assumed I would find '.' in path")
 	}
 	return path[i+1:]
+}
+
+func readLimits(path string) (lims Constraints) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return
+	}
+	var key string
+	var value int
+	for _, line := range strings.Split(string(data), "\n") {
+		n, _ := fmt.Sscanf(line, "%s %d", &key, &value)
+		if n == 2 {
+			switch key {
+			case "Memory": lims.Memory = value
+			case "Time": lims.Time = value
+			case "FileSize": lims.FileSize = value
+			}
+		}
+	}
+	return
 }
