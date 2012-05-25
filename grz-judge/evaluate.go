@@ -2,12 +2,12 @@ package main
 
 import (
 	"bytes"
+	"code.google.com/p/go.net/websocket"
 	"fmt"
 	"log"
 	"os/exec"
 	"strings"
 	"time"
-	"code.google.com/p/go.net/websocket"
 
 	"github.com/pauek/garzon/eval"
 )
@@ -132,9 +132,9 @@ func (E *Evaluator) HandleSubmissions() {
 		log.Printf("Submitting '%s'", sub.Problem.Title)
 		if err := websocket.JSON.Send(E.ws, sub); err != nil {
 			log.Printf("\n\n%s\n\n", E.stderr.String())
-			log.Fatalf("Call failed: %s\n", err)
+			log.Printf("Call failed: %s\n", err)
 			continue
-		} 
+		}
 		var err error
 		var resp eval.Response
 		for {
@@ -162,7 +162,6 @@ func (E *Evaluator) HandleSubmissions() {
 		E.stderr.Reset() // FIXME: se corta o algo
 	}
 }
-
 
 func (E *Evaluator) CleanUp() {
 	E.ws.Close()
