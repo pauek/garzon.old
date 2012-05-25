@@ -132,7 +132,7 @@ func submit(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprint(w, "ERROR: Cannot get solution file")
 		return
 	}
-	solution, err := ioutil.ReadAll(file)
+	solutionBytes, err := ioutil.ReadAll(file)
 	if err != nil {
 		fmt.Fprint(w, "ERROR: Cannot read solution file")
 		return
@@ -141,7 +141,23 @@ func submit(w http.ResponseWriter, req *http.Request) {
 	if user != username {
 		log.Printf("Warning: different 'user' and 'username' ('%s' vs '%s')", user, username)
 	}
-	ID := queue.Add(username, id, problem, string(solution))
+
+	// FIXME: El texto de la solución puede ir en cualquier encoding
+	// Aquí habría que descubrir el encoding y pasar el texto a UTF8
+	// a partir de ahí, Go se encarga.
+
+	// FIXME: Y si se envia un fichero en binario??
+
+	// Por ahora borramos los caracteres fuera del rango 0-127 (ASCII pelado)
+	for i := 0; i < len(solutionBytes); i++ {
+		if solutionBytes[i] >= 128 {
+			solutionBytes[i] = byte(' ')
+		}
+	}
+	solution := string(solutionBytes)
+	fmt.Println(solution)
+	
+	ID := queue.Add(username, id, problem, solution)
 	fmt.Fprintf(w, "%s", ID)
 	return
 }
