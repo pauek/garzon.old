@@ -37,14 +37,14 @@ func (Q *Queue) Add(user string, pid string, problem *eval.Problem, sol string) 
 	Q.inprogress[ID] = &eval.Submission{
 		User:      user,
 		ProblemID: pid,
-		Problem:   problem,
 		Solution:  sol,
 		Submitted: time.Now(),
 	}
+	Q.store(ID)
+	Q.inprogress[ID].Problem = problem
 	Q.progress[ID] = make(chan string, 1)
 	Q.progress[ID] <- "In queue"
 	Q.Mutex.Unlock()
-	Q.store(ID)
 	Q.Channel <- ID
 	return
 }
