@@ -123,6 +123,9 @@ func equalBytes(a, b []byte) bool {
 }
 
 func sortLines(a string) string {
+	if len(a) == 0 {
+		return "\n"
+	}
 	if a[len(a)-1] == '\n' {
 		a = a[:len(a)-1]
 	}
